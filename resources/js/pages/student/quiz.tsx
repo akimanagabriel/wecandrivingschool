@@ -1,0 +1,408 @@
+import { useCallback, useEffect, useRef, useState, memo } from 'react';
+import { Head, router } from '@inertiajs/react';
+import { AlertTriangle, CheckSquare, ChevronLeft, ChevronRight, Clock, LayoutGrid, X } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+import type { QuizAttemptMeta, QuizQuestion, WeCanPageProps } from '@/types/wecan';
+
+type Props = WeCanPageProps<{
+    attempt: QuizAttemptMeta;
+    questions: QuizQuestion[];
+    savedAnswers: Record<number, number>;
+}>;
+
+// ── Isolated Countdown Timer ───────────────────────────────────────────────
+// Extracts the 1s tick from the main Quiz component to prevent 60 FPS full-page re-renders.
+const CountdownTimer = memo(({ initialSeconds, onExpire }: { initialSeconds: number; onExpire: () => void }) => {
+    const [timeLeft, setTimeLeft] = useState(initialSeconds);
+    const hasExpired = useRef(false);
+
+    useEffect(() => {
+        if (timeLeft <= 0) { 
+            if (!hasExpired.current) { hasExpired.current = true; onExpire(); }
+            return;
+        }
+        
+        const id = setInterval(() => {
+            setTimeLeft((t) => {
+                if (t <= 1) { 
+                    clearInterval(id); 
+                    if (!hasExpired.current) { hasExpired.current = true; onExpire(); }
+                    return 0; 
+                }
+                return t - 1;
+            });
+        }, 1000);
+        
+        return () => clearInterval(id);
+    }, [onExpire, timeLeft]);
+
+    const fmt = (s: number) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
+    const timerColor = timeLeft <= 60 ? 'text-red-500 animate-pulse' : timeLeft <= 300 ? 'text-yellow-500' : 'text-foreground';
+
+    return (
+        <div className={cn('flex items-center gap-1.5 text-lg font-bold tabular-nums', timerColor)}>
+            <Clock className="h-5 w-5" />
+            {fmt(timeLeft)}
+        </div>
+    );
+});
+CountdownTimer.displayName = 'CountdownTimer';
+
+export default function Quiz({ attempt, questions, savedAnswers }: Props) {
+    const [answers, setAnswers]           = useState<Record<number, number>>(savedAnswers ?? {});
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [submitting, setSubmitting]     = useState(false);
+    const [showConfirm, setShowConfirm]   = useState(false);
+    const [showMobileGrid, setShowMobileGrid] = useState(false);
+    const debounce                        = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+
+    // ── Save answer via fetch ──────────────────────────────────────────────────
+    const saveAnswer = useCallback((qid: number, oid: number) => {
+        clearTimeout(debounce.current[qid]);
+        debounce.current[qid] = setTimeout(() => {
+            const csrf = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+            fetch(`/quiz/${attempt.id}/answer`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf },
+                body: JSON.stringify({ question_id: qid, option_id: oid }),
+            }).catch(() => {/* silently fail – captured on submit */});
+        }, 400);
+    }, [attempt.id]);
+
+    const selectAnswer = useCallback((qid: number, oid: number) => {
+        setAnswers((prev) => ({ ...prev, [qid]: oid }));
+        saveAnswer(qid, oid);
+    }, [saveAnswer]);
+
+    // ── Submit ─────────────────────────────────────────────────────────────────
+    const handleSubmit = useCallback(() => {
+        setSubmitting(true);
+        router.post(`/quiz/${attempt.id}/submit`, { answers }, {
+            onFinish: () => setSubmitting(false),
+        });
+    }, [attempt.id, answers]);
+
+    const handleAutoSubmit = useCallback(() => {
+        setSubmitting(true);
+        router.post(`/quiz/${attempt.id}/submit`, { answers });
+    }, [attempt.id, answers]);
+
+    // ── Keyboard Navigation ────────────────────────────────────────────────────
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (showConfirm || showMobileGrid) return; // Disable when modals are open
+            
+            if (e.key === 'ArrowLeft') {
+                setCurrentIndex((i) => Math.max(0, i - 1));
+            } else if (e.key === 'ArrowRight') {
+                setCurrentIndex((i) => Math.min(attempt.totalQuestions - 1, i + 1));
+            } else if (['1', '2', '3', '4', 'a', 'b', 'c', 'd'].includes(e.key.toLowerCase())) {
+                const map: Record<string, number> = { '1': 0, 'a': 0, '2': 1, 'b': 1, '3': 2, 'c': 2, '4': 3, 'd': 3 };
+                const optIndex = map[e.key.toLowerCase()];
+                const targetOption = questions[currentIndex]?.options[optIndex];
+                if (targetOption) {
+                    selectAnswer(questions[currentIndex].id, targetOption.id);
+                    // Add slight delay before auto-advancing, or just let user navigate manually.
+                    // We let them navigate manually to avoid disorientation.
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [currentIndex, questions, showConfirm, showMobileGrid, selectAnswer, attempt.totalQuestions]);
+
+
+    // ── Render ─────────────────────────────────────────────────────────────────
+    const current   = questions[currentIndex];
+    const answered  = Object.keys(answers).length;
+    const progress  = Math.round((answered / attempt.totalQuestions) * 100);
+    const labels    = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+    // Common grid renderer used by both desktop sidebar and mobile drawer
+    const renderGrid = () => (
+        <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-6 lg:grid-cols-5">
+            {questions.map((q, i) => {
+                const isAns = !!answers[q.id];
+                const isCur = i === currentIndex;
+                return (
+                    <button
+                        key={q.id}
+                        onClick={() => { setCurrentIndex(i); setShowMobileGrid(false); }}
+                        className={cn(
+                            'aspect-square rounded-md text-xs font-semibold transition hover:scale-105 active:scale-95',
+                            isCur && 'ring-2 ring-primary ring-offset-1 dark:ring-offset-background',
+                            isAns ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70',
+                        )}
+                    >
+                        {i + 1}
+                    </button>
+                );
+            })}
+        </div>
+    );
+
+    return (
+        <>
+            <Head title="Quiz Question" />
+            <div className="flex min-h-screen flex-col bg-background md:bg-muted/20">
+                {/* Header */}
+                <header className="sticky top-0 z-40 border-b bg-background/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/60">
+                    <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+                        <div className="flex items-center gap-3">
+                            <span className="hidden font-semibold text-primary md:block text-lg">WeCanDrivingSchool</span>
+                            <span className="hidden text-muted-foreground md:block">·</span>
+                            <div className="flex flex-col">
+                                <span className="text-sm font-medium">Question {currentIndex + 1} of {attempt.totalQuestions}</span>
+                                <span className="text-xs text-muted-foreground md:hidden">{answered} completed</span>
+                            </div>
+                        </div>
+                        
+                        <CountdownTimer initialSeconds={attempt.remainingSeconds} onExpire={handleAutoSubmit} />
+                        
+                        <Button
+                            size="sm"
+                            className="hidden shadow-sm transition hover:shadow md:flex"
+                            onClick={() => setShowConfirm(true)}
+                            disabled={submitting}
+                        >
+                            <CheckSquare className="mr-2 h-4 w-4" />
+                            {submitting ? 'Submitting…' : 'Submit Quiz'}
+                        </Button>
+
+                        {/* Mobile Grid Toggle */}
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            className="flex md:hidden border-primary/20 text-primary hover:bg-primary/10"
+                            onClick={() => setShowMobileGrid(true)}
+                        >
+                            <LayoutGrid className="h-5 w-5" />
+                        </Button>
+                    </div>
+                    {/* Progress bar */}
+                    <div className="h-1 w-full bg-muted/50">
+                        <div
+                            className="h-1 bg-primary/80 transition-all duration-500 ease-out"
+                            style={{ width: `${progress}%` }}
+                        />
+                    </div>
+                </header>
+
+                <main className="mx-auto flex w-full max-w-5xl flex-1 gap-6 px-4 py-6 md:py-8 lg:flex-row pb-24 md:pb-8">
+                    {/* Main Question Card */}
+                    <div className="flex-1 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <Card className="border-muted shadow-sm md:shadow-md">
+                            <CardContent className="p-5 md:p-8">
+                                <div className="mb-5 flex flex-wrap items-center gap-2">
+                                    <Badge variant="secondary" className="px-3 py-1 font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
+                                        Question {currentIndex + 1}
+                                    </Badge>
+                                    <Badge variant="outline" className="px-3 py-1 font-medium">{current.category}</Badge>
+                                </div>
+
+                                <h2 className="mb-8 text-xl font-bold leading-relaxed text-foreground md:text-2xl">
+                                    {current.question_text}
+                                </h2>
+
+                                <div className="space-y-3">
+                                    {current.options.map((opt, i) => {
+                                        const selected = answers[current.id] === opt.id;
+                                        return (
+                                            <button
+                                                key={opt.id}
+                                                onClick={() => selectAnswer(current.id, opt.id)}
+                                                className={cn(
+                                                    'group relative flex w-full items-center gap-4 rounded-xl border-2 px-5 py-4 text-left text-[15px] font-medium transition-all duration-200 ease-in-out',
+                                                    selected
+                                                        ? 'border-primary bg-primary/5 text-primary shadow-sm scale-[1.01]'
+                                                        : 'border-muted bg-background hover:border-primary/40 hover:bg-muted/30 active:scale-[0.99]',
+                                                )}
+                                            >
+                                                <span className={cn(
+                                                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold transition-colors duration-200',
+                                                    selected
+                                                        ? 'border-primary bg-primary text-primary-foreground'
+                                                        : 'border-muted-foreground/30 text-muted-foreground group-hover:border-primary/40 group-hover:text-primary',
+                                                )}>
+                                                    {labels[i]}
+                                                </span>
+                                                <span className="leading-snug">{opt.option_text}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Pagination Prev / Next */}
+                        <div className="mt-6 flex items-center justify-between">
+                            <Button
+                                variant="outline"
+                                className="h-12 px-6 shadow-sm disabled:opacity-50"
+                                onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
+                                disabled={currentIndex === 0}
+                            >
+                                <ChevronLeft className="mr-2 h-5 w-5" /> Previous
+                            </Button>
+                            
+                            <span className="hidden text-sm font-medium text-muted-foreground md:inline-block">
+                                Keyboard: Use <kbd className="mx-1 rounded border bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground">←</kbd> <kbd className="mx-1 rounded border bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground">→</kbd> to navigate
+                            </span>
+
+                            <Button
+                                className="h-12 px-6 shadow-sm disabled:opacity-50"
+                                onClick={() => setCurrentIndex((i) => Math.min(attempt.totalQuestions - 1, i + 1))}
+                                disabled={currentIndex === attempt.totalQuestions - 1}
+                            >
+                                Next <ChevronRight className="ml-2 h-5 w-5" />
+                            </Button>
+                        </div>
+                    </div>
+
+                    {/* Question Navigator (Desktop) */}
+                    <aside className="hidden w-64 shrink-0 lg:block">
+                        <Card className="sticky top-24 shadow-sm border-muted">
+                            <CardContent className="p-5">
+                                <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                                    <LayoutGrid className="h-4 w-4" />
+                                    Question Grid
+                                </h3>
+                                
+                                {renderGrid()}
+                                
+                                <div className="mt-5 space-y-2 text-sm text-foreground bg-muted/30 p-3 rounded-lg border border-muted/50">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <span className="inline-block h-3 w-3 rounded-full bg-primary" />
+                                            <span>Answered</span>
+                                        </div>
+                                        <span className="font-semibold">{answered}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <span className="inline-block h-3 w-3 rounded-full bg-muted border border-muted-foreground/20" />
+                                            <span>Unanswered</span>
+                                        </div>
+                                        <span className="font-semibold">{attempt.totalQuestions - answered}</span>
+                                    </div>
+                                </div>
+
+                                <Button
+                                    className="mt-6 w-full shadow-sm"
+                                    size="lg"
+                                    onClick={() => setShowConfirm(true)}
+                                    disabled={submitting}
+                                >
+                                    <CheckSquare className="mr-2 h-5 w-5" />
+                                    Submit Quiz
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    </aside>
+                </main>
+
+                {/* Mobile Bottom Fixed Bar */}
+                <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background p-4 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] md:hidden">
+                    <Button
+                        className="w-full text-base font-semibold shadow"
+                        size="lg"
+                        onClick={() => setShowConfirm(true)}
+                        disabled={submitting}
+                    >
+                        <CheckSquare className="mr-2 h-5 w-5" />
+                        {submitting ? 'Submitting…' : 'Submit Quiz Now'}
+                    </Button>
+                </div>
+
+                {/* Mobile Drawer (Slide up) */}
+                {showMobileGrid && (
+                    <div className="fixed inset-0 z-50 flex flex-col justify-end lg:hidden">
+                        <div 
+                            className="absolute inset-0 bg-background/80 backdrop-blur-sm transition-opacity" 
+                            onClick={() => setShowMobileGrid(false)} 
+                        />
+                        <div className="relative isolate w-full bg-background rounded-t-2xl shadow-2xl animate-in slide-in-from-bottom border-t px-6 py-6 pb-12">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-lg font-bold flex items-center gap-2">
+                                    <LayoutGrid className="h-5 w-5 text-primary" />
+                                    Navigate Questions
+                                </h3>
+                                <Button variant="ghost" size="icon" className="rounded-full -mr-2" onClick={() => setShowMobileGrid(false)}>
+                                    <X className="h-5 w-5" />
+                                </Button>
+                            </div>
+                            
+                            <div className="mb-6 max-h-[50vh] overflow-y-auto px-1 py-1 custom-scrollbar">
+                                {renderGrid()}
+                            </div>
+                            
+                            <div className="flex items-center justify-around rounded-xl bg-muted/50 py-3 px-4 text-sm font-medium">
+                                <div className="flex items-center gap-2">
+                                    <span className="h-3 w-3 rounded-full bg-primary shadow-sm" />
+                                    {answered} Answered
+                                </div>
+                                <div className="w-px h-6 bg-border" />
+                                <div className="flex items-center gap-2">
+                                    <span className="h-3 w-3 rounded-full bg-muted border border-muted-foreground/30 shadow-sm" />
+                                    {attempt.totalQuestions - answered} Left
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Confirm Modal */}
+                {showConfirm && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 px-4 backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200">
+                        <Card className="w-full max-w-sm shadow-2xl border-muted">
+                            <CardContent className="p-6">
+                                <div className="mb-5 flex items-center gap-4">
+                                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900/30">
+                                        <AlertTriangle className="h-6 w-6 text-yellow-600 dark:text-yellow-500" />
+                                    </div>
+                                    <h3 className="text-xl font-bold">Ready to submit?</h3>
+                                </div>
+                                
+                                <div className="mb-6 space-y-3">
+                                    <p className="text-[15px] text-muted-foreground leading-relaxed">
+                                        You have answered <strong className="text-foreground">{answered}</strong> of{' '}
+                                        <strong className="text-foreground">{attempt.totalQuestions}</strong> questions.
+                                    </p>
+                                    
+                                    {answered < attempt.totalQuestions && (
+                                        <div className="rounded-lg bg-yellow-50 dark:bg-yellow-900/20 p-3 border border-yellow-200 dark:border-yellow-900/50">
+                                            <p className="text-sm font-medium text-yellow-800 dark:text-yellow-400 flex items-start gap-2">
+                                                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                                                <span>{attempt.totalQuestions - answered} unanswered questions will be marked incorrect.</span>
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex gap-3">
+                                    <Button
+                                        variant="outline"
+                                        className="flex-1 font-semibold"
+                                        onClick={() => setShowConfirm(false)}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        className="flex-1 font-semibold"
+                                        onClick={() => { setShowConfirm(false); handleSubmit(); }}
+                                        disabled={submitting}
+                                    >
+                                        {submitting ? 'Submitting…' : 'Submit Quiz'}
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+            </div>
+        </>
+    );
+}
