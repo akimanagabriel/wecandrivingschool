@@ -15,9 +15,12 @@ class UserController extends Controller
     public function index(Request $request): Response
     {
         $users = User::with('roles')
+            ->whereDoesntHave('roles', function ($query) {
+                $query->where('name', 'admin');
+            })
             ->when($request->search, fn ($q) => $q->where('name', 'like', "%{$request->search}%")
                 ->orWhere('email', 'like', "%{$request->search}%"))
-            ->when($request->role, fn ($q) => $q->role($request->role))
+            ->when($request->role && $request->role !== 'all', fn ($q) => $q->role($request->role))
             ->latest()
             ->paginate(20)
             ->withQueryString()

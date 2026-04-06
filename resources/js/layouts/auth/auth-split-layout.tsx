@@ -11,32 +11,78 @@ export default function AuthSplitLayout({
     const { name } = usePage().props;
 
     return (
-        <div className="relative grid h-dvh flex-col items-center justify-center px-8 sm:px-0 lg:max-w-none lg:grid-cols-2 lg:px-0">
-            <div className="relative hidden h-full flex-col bg-muted p-10 text-white lg:flex dark:border-r">
-                <div className="absolute inset-0 bg-zinc-900" />
+        <div className="grid min-h-screen bg-white lg:grid-cols-2">
+            {/* LEFT SIDE - HERO */}
+            <div className="relative hidden flex-col justify-between bg-gradient-to-br from-[#2b1a12] via-[#3a2418] to-[#1f120d] p-12 text-white lg:flex">
+                {/* Overlay */}
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#ffffff_1px,_transparent_1px)] bg-[size:20px_20px] opacity-20" />
+
+                {/* Logo */}
                 <Link
                     href={home()}
-                    className="relative z-20 flex items-center text-lg font-medium"
+                    className="relative z-10 flex items-center gap-2 text-lg font-semibold"
                 >
-                    <AppLogoIcon className="mr-2 size-8 fill-current text-white" />
+                    <AppLogoIcon className="size-8 fill-white" />
                     {name}
                 </Link>
+
+                {/* Hero Content */}
+                <div className="relative z-10 max-w-xl space-y-6">
+                    <h1 className="text-4xl leading-tight font-bold">
+                        Pass Your{' '}
+                        <span className="text-yellow-400">Driving Theory</span>{' '}
+                        Test First Time
+                    </h1>
+
+                    <p className="text-base text-slate-300">
+                        Practice with hundreds of real exam-style questions,
+                        timed quizzes, and instant explanations to help you
+                        succeed.
+                    </p>
+
+                    <div className="flex items-center gap-4">
+                        <div className="rounded-xl bg-white/10 px-4 py-2 text-sm backdrop-blur">
+                            400+ Questions
+                        </div>
+                        <div className="rounded-xl bg-white/10 px-4 py-2 text-sm backdrop-blur">
+                            Timed Exams
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <p className="relative z-10 text-sm text-slate-400">
+                    © {new Date().getFullYear()} {name}
+                </p>
             </div>
-            <div className="w-full lg:p-8">
-                <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
+
+            {/* RIGHT SIDE - FORM */}
+            <div className="flex items-center justify-center px-6 py-12">
+                <div className="w-full max-w-md space-y-6">
+                    {/* Mobile Logo */}
                     <Link
                         href={home()}
-                        className="relative z-20 flex items-center justify-center lg:hidden"
+                        className="flex justify-center lg:hidden"
                     >
-                        <AppLogoIcon className="h-10 fill-current text-black sm:h-12" />
+                        <AppLogoIcon className="h-10" />
                     </Link>
-                    <div className="flex flex-col items-start gap-2 text-left sm:items-center sm:text-center">
-                        <h1 className="text-xl font-medium">{title}</h1>
-                        <p className="text-sm text-balance text-muted-foreground">
-                            {description}
-                        </p>
+
+                    {/* Card */}
+                    <div className="rounded-2xl border bg-white p-8 shadow-xl">
+                        <div className="space-y-2 text-center">
+                            <h1 className="text-2xl font-semibold">{title}</h1>
+                            <p className="text-sm text-gray-500">
+                                {description}
+                            </p>
+                        </div>
+
+                        <div className="mt-6">{children}</div>
                     </div>
-                    {children}
+
+                    {/* Footer */}
+                    <p className="text-center text-xs text-gray-400">
+                        By continuing, you agree to our Terms & Privacy Policy
+                    </p>
                 </div>
             </div>
         </div>

@@ -8,7 +8,6 @@ import {
     Trophy,
     Users,
 } from 'lucide-react';
-import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -46,12 +45,16 @@ export function AppSidebar() {
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" asChild>
+                        <SidebarMenuButton className="h-40" size="lg" asChild>
                             <Link
                                 href={isAdmin ? '/admin' : '/student/dashboard'}
                                 prefetch
+                                className="flex"
                             >
-                                <AppLogo />
+                                <img
+                                    className="rounded-2xl object-cover"
+                                    src="/app-logo.jpeg"
+                                />
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
