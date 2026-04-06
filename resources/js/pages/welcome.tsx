@@ -1,5 +1,5 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import { dashboard, login, register } from '@/routes';
+
 import {
     BookOpen,
     CheckCircle,
@@ -13,6 +13,8 @@ import {
     Trophy,
     Users,
 } from 'lucide-react';
+
+import { dashboard, login, register } from '@/routes';
 
 // ── Brand colours (from logo) ─────────────────────────────────────────────────
 // Primary  : #F5C518  (golden yellow)
