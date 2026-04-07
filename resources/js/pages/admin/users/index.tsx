@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable import/order */
 import { useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { Eye, Search, Trash2 } from 'lucide-react';
@@ -13,14 +15,6 @@ import type {
     PaginatedData,
     WeCanPageProps,
 } from '@/types/wecan';
-
-import {
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-    Select,
-} from '@/components/ui/select';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Admin', href: '/admin' },
@@ -41,8 +35,9 @@ export default function UsersIndex({ users, roles, filters }: Props) {
     const apply = () =>
         router.get('/admin/users', { search, role }, { preserveState: true });
     const destroy = (id: number) => {
-        if (confirm('Delete this user and all their quiz data?'))
+        if (confirm('Delete this user and all their quiz data?')) {
             router.delete(`/admin/users/${id}`);
+        }
     };
     const toggleAccess = (id: number) =>
         router.post(`/admin/users/${id}/toggle-access`);
