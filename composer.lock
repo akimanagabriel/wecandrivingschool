@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0d2337bf0ad2acababd134a45c8e54aa",
+    "content-hash": "fa9774f422ed9732051f867c0903231f",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -3568,6 +3568,59 @@
                 "source": "https://github.com/bobthecow/psysh/tree/v0.12.21"
             },
             "time": "2026-03-06T21:21:28+00:00"
+        },
+        {
+            "name": "quarksgroup/paypack-php",
+            "version": "v0.1.20",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/quarksgroup/paypack-php.git",
+                "reference": "104a5b3a702bf9a98feedb171b732deddd4d96f1"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/quarksgroup/paypack-php/zipball/104a5b3a702bf9a98feedb171b732deddd4d96f1",
+                "reference": "104a5b3a702bf9a98feedb171b732deddd4d96f1",
+                "shasum": ""
+            },
+            "require": {
+                "guzzlehttp/guzzle": "^7.4",
+                "php": ">=7.4"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Paypack\\": "src/"
+                },
+                "classmap": [
+                    "src/Paypack.php"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Quarks Group",
+                    "email": "info@quarksgroup.rw"
+                }
+            ],
+            "description": "Paypack SDK for PHP Integration",
+            "homepage": "https://paypack.rw/",
+            "keywords": [
+                "payment processing",
+                "paypack",
+                "paypack SDK",
+                "paypack php",
+                "paypack rwanda",
+                "rwanda payment"
+            ],
+            "support": {
+                "issues": "https://github.com/quarksgroup/paypack-php/issues",
+                "source": "https://github.com/quarksgroup/paypack-php/tree/v0.1.20"
+            },
+            "time": "2024-01-29T15:41:12+00:00"
         },
         {
             "name": "ralouphie/getallheaders",

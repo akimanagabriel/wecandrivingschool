@@ -15,8 +15,6 @@ Route::middleware(['auth', 'verified', 'role:student|admin'])->group(function ()
     // Payments
     Route::get('student/payment', [PaymentController::class, 'index'])->name('student.payment');
     Route::post('student/payment/momo', [PaymentController::class, 'initiateMomo'])->name('student.payment.momo');
-    Route::post('student/payment/stripe', [PaymentController::class, 'initiateStripe'])->name('student.payment.stripe');
-    Route::get('student/payment/stripe/callback', [PaymentController::class, 'stripeCallback'])->name('student.payment.stripe.callback');
     Route::get('student/payment/success/{payment}', [PaymentController::class, 'success'])->name('student.payment.success');
 
     // Quiz
