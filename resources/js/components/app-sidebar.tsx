@@ -5,7 +5,6 @@ import {
     CreditCard,
     HelpCircle,
     LayoutGrid,
-    Trophy,
     Users,
 } from 'lucide-react';
 import { NavMain } from '@/components/nav-main';
@@ -24,7 +23,6 @@ import type { NavItem } from '@/types';
 
 const studentNavItems: NavItem[] = [
     { title: 'Dashboard', href: '/student/dashboard', icon: LayoutGrid },
-    { title: 'My Results', href: '/student/dashboard', icon: Trophy },
     { title: 'Access / Pay', href: '/student/payment', icon: CreditCard },
 ];
 

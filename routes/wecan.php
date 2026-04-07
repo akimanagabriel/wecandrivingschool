@@ -25,6 +25,8 @@ Route::middleware(['auth', 'verified', 'role:student|admin'])->group(function ()
     Route::get('quiz/{attempt}/results', [QuizController::class, 'results'])->name('quiz.results');
 });
 
+
+
 // ── Admin routes ───────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
 
