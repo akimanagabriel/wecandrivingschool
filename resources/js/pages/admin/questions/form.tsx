@@ -14,6 +14,7 @@ import {
     AlertCircle,
     Save,
     Ban,
+    ImageIcon,
 } from 'lucide-react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -48,6 +49,7 @@ type Question = {
     id: number;
     category_id: number;
     question_text: string;
+    image_path: string | null;
     difficulty: 'easy' | 'medium' | 'hard';
     explanation: string | null;
     explanation_audio_path: string | null;
@@ -65,6 +67,8 @@ type FormData = {
     question_text: string;
     difficulty: string;
     explanation: string;
+    image: File | null;
+    remove_image: boolean;
     explanation_audio: File | null;
     remove_audio: boolean;
     is_active: boolean;
@@ -92,6 +96,8 @@ export default function QuestionForm({ question, categories }: Props) {
         question_text: question?.question_text ?? '',
         difficulty: question?.difficulty ?? 'medium',
         explanation: question?.explanation ?? '',
+        image: null,
+        remove_image: false,
         explanation_audio: null,
         remove_audio: false,
         is_active: question?.is_active ?? true,
@@ -334,6 +340,120 @@ export default function QuestionForm({ question, categories }: Props) {
                                     <InputError
                                         message={errors.question_text}
                                     />
+                                </div>
+
+                                {/* Question Image Section */}
+                                <div className="space-y-3 rounded-2xl border border-dashed border-muted/80 bg-muted/10 p-6">
+                                    <Label className="flex items-center gap-2 text-sm font-bold tracking-wider text-muted-foreground uppercase">
+                                        <ImageIcon className="h-4 w-4" /> Question Image (Optional)
+                                    </Label>
+                                    <p className="text-xs text-muted-foreground -mt-1">
+                                        Add a road sign, diagram, or any image related to this question.
+                                    </p>
+
+                                    {/* Existing image banner */}
+                                    {isEditing &&
+                                        question.image_path &&
+                                        !data.remove_image &&
+                                        !data.image && (
+                                            <div className="flex items-start gap-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-blue-800 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-300">
+                                                <img
+                                                    src={`/storage/${question.image_path}`}
+                                                    alt="Question image"
+                                                    className="h-24 w-auto rounded-lg object-contain border border-blue-200 bg-white"
+                                                />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-xs font-black tracking-widest text-blue-600 uppercase mb-1">
+                                                        Current Image
+                                                    </p>
+                                                    <p className="text-xs text-blue-500 truncate">
+                                                        {question.image_path.split('/').pop()}
+                                                    </p>
+                                                </div>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 rounded-lg text-blue-600 hover:bg-red-100 hover:text-red-600 shrink-0"
+                                                    onClick={() => setData('remove_image', true)}
+                                                    title="Remove existing image"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        )}
+
+                                    {(!isEditing ||
+                                        !question.image_path ||
+                                        data.remove_image ||
+                                        data.image) && (
+                                        <div className="space-y-4">
+                                            {/* Image drop zone */}
+                                            <div
+                                                className={cn(
+                                                    'relative flex min-h-40 flex-col items-center justify-center rounded-2xl border-2 border-dashed transition-all',
+                                                    data.image
+                                                        ? 'border-blue-400 bg-blue-50/50'
+                                                        : 'border-muted-foreground/20 hover:border-primary/40 hover:bg-muted/30',
+                                                )}
+                                            >
+                                                {data.image ? (
+                                                    <div className="flex flex-col items-center gap-3 p-4 text-center w-full">
+                                                        <img
+                                                            src={URL.createObjectURL(data.image)}
+                                                            alt="Preview"
+                                                            className="max-h-40 w-auto rounded-lg object-contain border border-muted shadow-sm"
+                                                        />
+                                                        <span className="text-xs font-bold text-blue-700">
+                                                            {data.image.name}
+                                                        </span>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="text-red-500 hover:bg-red-50"
+                                                            onClick={() => {
+                                                                setData('image', null);
+                                                            }}
+                                                        >
+                                                            <Trash2 className="mr-1 h-3.5 w-3.5" />{' '}
+                                                            Remove
+                                                        </Button>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <ImageIcon className="mb-2 h-8 w-8 text-muted-foreground opacity-30" />
+                                                        <p className="text-sm font-bold text-muted-foreground">
+                                                            Click to upload an image
+                                                        </p>
+                                                        <p className="text-xs text-muted-foreground/60 mt-1">
+                                                            PNG, JPG, GIF, WebP — max 5 MB
+                                                        </p>
+                                                        <input
+                                                            id="question_image"
+                                                            type="file"
+                                                            accept="image/*"
+                                                            onChange={(e) =>
+                                                                setData(
+                                                                    'image',
+                                                                    e.target.files?.[0] ?? null,
+                                                                )
+                                                            }
+                                                            className="absolute inset-0 cursor-pointer opacity-0"
+                                                        />
+                                                        <Button
+                                                            type="button"
+                                                            variant="link"
+                                                            className="mt-1 h-auto py-0 text-[10px] font-black tracking-widest uppercase hover:text-primary"
+                                                        >
+                                                            Browse Files
+                                                        </Button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                    <InputError message={errors.image as string} />
                                 </div>
 
                                 <div className="flex items-center gap-3 space-y-0 rounded-xl border border-muted/50 bg-muted/30 p-4">

@@ -57,6 +57,7 @@ export type QuizResultAttempt = {
 export type AnswerReview = {
     question_id: number;
     question_text: string;
+    image_path: string | null;
     category: string;
     explanation: string | null;
     explanation_audio_url: string | null;

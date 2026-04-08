@@ -56,9 +56,15 @@ class QuestionController extends Controller
                 $audioPath = $request->file('explanation_audio')->store('audio', 'public');
             }
 
+            $imagePath = null;
+            if ($request->hasFile('image')) {
+                $imagePath = $request->file('image')->store('questions/images', 'public');
+            }
+
             $question = Question::create([
                 'category_id'            => $validated['category_id'],
                 'question_text'          => $validated['question_text'],
+                'image_path'             => $imagePath,
                 'difficulty'             => $validated['difficulty'],
                 'explanation'            => $validated['explanation'] ?? null,
                 'explanation_audio_path' => $audioPath,
@@ -105,9 +111,24 @@ class QuestionController extends Controller
                 $audioPath = null;
             }
 
+            $imagePath = $question->image_path;
+
+            if ($request->hasFile('image')) {
+                if ($imagePath) {
+                    Storage::disk('public')->delete($imagePath);
+                }
+                $imagePath = $request->file('image')->store('questions/images', 'public');
+            } elseif ($request->boolean('remove_image')) {
+                if ($imagePath) {
+                    Storage::disk('public')->delete($imagePath);
+                }
+                $imagePath = null;
+            }
+
             $question->update([
                 'category_id'            => $validated['category_id'],
                 'question_text'          => $validated['question_text'],
+                'image_path'             => $imagePath,
                 'difficulty'             => $validated['difficulty'],
                 'explanation'            => $validated['explanation'] ?? null,
                 'explanation_audio_path' => $audioPath,
@@ -151,6 +172,8 @@ class QuestionController extends Controller
             'question_text'         => 'required|string',
             'difficulty'            => 'required|in:easy,medium,hard',
             'explanation'           => 'nullable|string',
+            'image'                 => 'nullable|file|image|max:5120',
+            'remove_image'          => 'nullable|boolean',
             'explanation_audio'     => [
                 'nullable',
                 'file',

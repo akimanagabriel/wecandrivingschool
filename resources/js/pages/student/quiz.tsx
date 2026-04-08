@@ -207,6 +207,16 @@ export default function Quiz({ attempt, questions, savedAnswers }: Props) {
                                     {current.question_text}
                                 </h2>
 
+                                {current.image_path && (
+                                    <div className="mb-6 flex justify-center">
+                                        <img
+                                            src={`/storage/${current.image_path}`}
+                                            alt="Question illustration"
+                                            className="max-h-64 w-auto rounded-xl border border-muted object-contain shadow-sm"
+                                        />
+                                    </div>
+                                )}
+
                                 <div className="space-y-3">
                                     {current.options.map((opt, i) => {
                                         const selected = answers[current.id] === opt.id;

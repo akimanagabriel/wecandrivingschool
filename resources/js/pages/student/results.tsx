@@ -238,6 +238,16 @@ export default function Results({ attempt, answers }: Props) {
                                                     </div>
                                                 )}
 
+                                                {ans.image_path && (
+                                                    <div className="flex justify-center rounded-xl border border-muted bg-muted/20 p-3">
+                                                        <img
+                                                            src={`/storage/${ans.image_path}`}
+                                                            alt="Question illustration"
+                                                            className="max-h-48 w-auto rounded-lg object-contain"
+                                                        />
+                                                    </div>
+                                                )}
+
                                                 {ans.explanation && (
                                                     <div className="relative overflow-hidden rounded-xl border border-blue-200 bg-blue-50/50 p-4 text-sm leading-relaxed text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300">
                                                         <div className="mb-2 flex items-center gap-2 font-black uppercase tracking-widest text-[10px] text-blue-700/70 dark:text-blue-400/70">

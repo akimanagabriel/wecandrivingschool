@@ -166,6 +166,7 @@ class QuizController extends Controller
             ->map(fn ($a) => [
                 'question_id'          => $a->question_id,
                 'question_text'        => $a->question->question_text,
+                'image_path'           => $a->question->image_path,
                 'category'             => $a->question->category->name,
                 'explanation'          => $a->question->explanation,
                 'explanation_audio_url' => $a->question->explanation_audio_path

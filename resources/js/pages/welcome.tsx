@@ -104,7 +104,7 @@ export default function Welcome({
                     body { font-family: 'Instrument Sans', sans-serif; }
                     .gold-gradient { background: linear-gradient(135deg, #F5C518 0%, #D4A800 100%); }
                     .navy-gradient { background: linear-gradient(135deg, #1B2A4A 0%, #0F1C35 100%); }
-                    .hero-gradient { background: linear-gradient(135deg, #0F1C35 0%, #1B2A4A 40%, #2D4270 100%); }
+                    .hero-gradient { background: linear-gradient(135deg, #1A0D00 0%, #7B3F00 40%, #472500 100%); }
                     .card-hover { transition: transform 0.2s, box-shadow 0.2s; }
                     .card-hover:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(27,42,74,0.15); }
                     @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
