@@ -3,10 +3,16 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { Toaster } from 'sonner';
 import '../css/app.css';
-import { initializeTheme } from '@/hooks/use-appearance';
+import { initializeTheme, useAppearance } from '@/hooks/use-appearance';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+
+function ToasterWrapper() {
+    const { resolvedAppearance } = useAppearance();
+    return <Toaster closeButton richColors position="top-right" theme={resolvedAppearance} />;
+}
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
@@ -22,6 +28,7 @@ createInertiaApp({
             <StrictMode>
                 <TooltipProvider delayDuration={0}>
                     <App {...props} />
+                    <ToasterWrapper />
                 </TooltipProvider>
             </StrictMode>,
         );

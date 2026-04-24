@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\QuizController;
 use App\Http\Controllers\StudentDashboardController;
+use App\Services\ItecPayment;
 use Illuminate\Support\Facades\Route;
 
 // ── Student routes ─────────────────────────────────────────────────────────────
@@ -31,7 +32,6 @@ Route::middleware(['auth', 'verified', 'role:student|admin'])->group(function ()
 Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
 
     Route::get('/', [Admin\DashboardController::class, 'index'])->name('dashboard');
-
     // Questions
     Route::get('questions', [Admin\QuestionController::class, 'index'])->name('questions.index');
     Route::get('questions/create', [Admin\QuestionController::class, 'create'])->name('questions.create');
@@ -51,4 +51,11 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     // Payments
     Route::get('payments', [Admin\PaymentController::class, 'index'])->name('payments.index');
     Route::post('payments/{payment}/refund', [Admin\PaymentController::class, 'refund'])->name('payments.refund');
+});
+
+Route::get("/pay", function () {
+    $itec = new ItecPayment();
+    $response = $itec->pay(5000, "0789638247");
+
+    return $response->json();
 });

@@ -86,8 +86,11 @@ export type PaymentRecord = {
     currency: string;
     payment_method: string;
     status: 'pending' | 'completed' | 'failed' | 'refunded';
+    transaction_id: string | null;
+    reference: string | null;
     paid_at: string | null;
     expires_at: string | null;
+    created_at: string;
 };
 
 // ── Admin ────────────────────────────────────────────────────────────────────

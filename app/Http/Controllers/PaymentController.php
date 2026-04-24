@@ -3,9 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Payment;
-use App\Services\PaypackService;
+use App\Services\ItecPayment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -19,19 +20,22 @@ class PaymentController extends Controller
         return Inertia::render('student/payment', [
             'hasAccess' => $user->hasActiveAccess(),
             'payments' => $user->payments()->latest()->get()->map(fn($p) => [
-                'id' => $p->id,
-                'amount' => $p->amount,
-                'currency' => $p->currency,
+                'id'             => $p->id,
+                'amount'         => $p->amount,
+                'currency'       => $p->currency,
                 'payment_method' => $p->payment_method,
-                'status' => $p->status,
-                'paid_at' => $p->paid_at,
-                'expires_at' => $p->access_expires_at,
+                'status'         => $p->status,
+                'transaction_id' => $p->transaction_id,
+                'reference'      => $p->reference,
+                'paid_at'        => $p->paid_at,
+                'expires_at'     => $p->access_expires_at,
+                'created_at'     => $p->created_at,
             ]),
         ]);
 
     }
 
-    public function initiateMomo(Request $request, PaypackService $paypackService): RedirectResponse
+    public function initiateMomo(Request $request, ItecPayment $itecPayment): RedirectResponse
     {
         $validated = $request->validate([
             'phone' => [
@@ -46,67 +50,86 @@ class PaymentController extends Controller
         $reference = 'WECAN-' . strtoupper(Str::random(8));
 
         $payment = Payment::create([
-            'user_id' => $request->user()->id,
-            'amount' => $amount,
-            'currency' => 'RWF',
-            'payment_method' => $validated['payment_method'],
-            'status' => 'pending',
-            'reference' => $reference,
+            'user_id'              => $request->user()->id,
+            'amount'               => $amount,
+            'currency'             => 'RWF',
+            'payment_method'       => $validated['payment_method'],
+            'status'               => 'pending',
+            'reference'            => $reference,
             'access_duration_days' => 30,
-            'metadata' => [
-                'phone' => $validated['phone'],
+            'metadata'             => [
+                'phone'     => $validated['phone'],
                 'initiated' => now()->toISOString(),
             ],
         ]);
 
         try {
-            //  FIX: always use validated phone
-            $response = $paypackService->cashin($amount, $validated['phone']);
+            $rawResponse = $itecPayment->pay($amount, $validated['phone']);
+            $body = $rawResponse->json(); // Automatically decodes JSON to array
 
-            //  FIX: stdClass safe access
-            $ref = $response->ref ?? $response->data->ref ?? null;
+            // If it's not JSON, we'll get null or the raw body if we use json()
+            // Let's ensure we have a fallback if the API returns non-JSON errors
+            if (!$body && $rawResponse->failed()) {
+                $errorMessage = "Gateway Error: " . ($rawResponse->body() ?: "Status Code " . $rawResponse->status());
+                throw new \Exception($errorMessage);
+            }
 
-            if (!$ref) {
+            $apiStatus  = $body['status'] ?? null;
+            $apiData    = $body['data']   ?? [];
+
+            if ($apiStatus === 200) {
+                $transId = $apiData['transID'] ?? null;
+
                 $payment->update([
-                    'status' => 'failed',
-                    'metadata' => array_merge($payment->metadata ?? [], [
-                        'paypack_response' => $response,
+                    'status'             => "completed",
+                    'transaction_id'     => $transId,
+                    'paid_at'            => now()->toDateTimeLocalString(),
+                    'access_expires_at'  => now()->addDays($payment->access_duration_days),
+                    'metadata'           => array_merge($payment->metadata ?? [], [
+                        'gateway_response' => $body,
+                        'gateway_amount'   => $apiData['amount'] ?? null,
                     ]),
                 ]);
 
-                return back()->withErrors([
-                    'payment' => 'Failed to initiate mobile money payment.',
-                ]);
+                return redirect()
+                    ->route('student.payment.success', $payment->id)
+                    ->with('success', 'Payment initiated! Check your phone for the MoMo prompt.');
             }
 
+            // Error path from API
+            $gatewayMessage = $apiData['message'] ?? 'Payment gateway error (Status: ' . ($apiStatus ?? 'unknown') . ')';
+
             $payment->update([
-                'transaction_id' => $ref,
+                'status'   => 'failed',
                 'metadata' => array_merge($payment->metadata ?? [], [
-                    'paypack_response' => $response,
+                    'gateway_response' => $body,
+                    'gateway_error'    => $gatewayMessage,
                 ]),
             ]);
 
+            return back()
+                ->with('error', $gatewayMessage)
+                ->withErrors(['payment' => $gatewayMessage]);
+
         } catch (\Exception $e) {
             $payment->update([
-                'status' => 'failed',
+                'status'   => 'failed',
                 'metadata' => array_merge($payment->metadata ?? [], [
                     'error' => $e->getMessage(),
                 ]),
             ]);
 
-            return back()->withErrors([
-                'payment' => 'Something went wrong while processing payment.',
-            ]);
+            return back()
+                ->with('error', 'Connection Error: ' . $e->getMessage())
+                ->withErrors(['payment' => $e->getMessage()]);
         }
-
-        return redirect()->route('student.payment.success', $payment->id);
     }
 
 
 
     public function success(Payment $payment): Response
     {
-        abort_if($payment->user_id !== auth()->id(), 403);
+        abort_if($payment->user_id !== Auth::user()->id, 403);
 
         return Inertia::render('student/payment-success', [
             'payment' => [
