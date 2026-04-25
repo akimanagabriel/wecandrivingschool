@@ -24,10 +24,17 @@ class CreateNewUser implements CreatesNewUsers
             'password' => $this->passwordRules(),
         ])->validate();
 
-        return User::create([
+        $user = User::create([
             'name' => $input['name'],
             'email' => $input['email'],
             'password' => $input['password'],
         ]);
+
+        $user->assignRole('student');
+        $user->has_paid_access = false;
+        $user->is_active = false;
+        $user->save();
+
+        return $user;
     }
 }

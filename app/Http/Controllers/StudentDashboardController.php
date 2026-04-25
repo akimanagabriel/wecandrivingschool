@@ -18,7 +18,7 @@ class StudentDashboardController extends Controller
             ->latest()
             ->take(10)
             ->get()
-            ->map(fn ($a) => [
+            ->map(fn($a) => [
                 'id'                => $a->id,
                 'score'             => $a->score,
                 'correct_answers'   => $a->correct_answers,

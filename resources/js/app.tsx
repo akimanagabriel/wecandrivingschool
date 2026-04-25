@@ -11,7 +11,9 @@ const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
 function ToasterWrapper() {
     const { resolvedAppearance } = useAppearance();
-    return <Toaster closeButton richColors position="top-right" theme={resolvedAppearance} />;
+    return (
+        <Toaster richColors position="top-right" theme={resolvedAppearance} />
+    );
 }
 
 createInertiaApp({
@@ -27,8 +29,8 @@ createInertiaApp({
         root.render(
             <StrictMode>
                 <TooltipProvider delayDuration={0}>
-                    <App {...props} />
                     <ToasterWrapper />
+                    <App {...props} />
                 </TooltipProvider>
             </StrictMode>,
         );

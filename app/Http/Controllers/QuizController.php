@@ -14,6 +14,8 @@ use Inertia\Response;
 
 class QuizController extends Controller
 {
+
+
     /** Start or resume a quiz attempt. */
     public function start(Request $request): RedirectResponse
     {
@@ -73,14 +75,14 @@ class QuizController extends Controller
         $questions = Question::with(['options', 'category'])
             ->whereIn('id', $attempt->question_ids)
             ->get()
-            ->sortBy(fn ($q) => array_search($q->id, $attempt->question_ids))
+            ->sortBy(fn($q) => array_search($q->id, $attempt->question_ids))
             ->values()
-            ->map(fn ($q) => [
+            ->map(fn($q) => [
                 'id'            => $q->id,
                 'question_text' => $q->question_text,
                 'image_path'    => $q->image_path,
                 'category'      => $q->category->name,
-                'options'       => $q->options->shuffle()->values()->map(fn ($o) => [
+                'options'       => $q->options->shuffle()->values()->map(fn($o) => [
                     'id'          => $o->id,
                     'option_text' => $o->option_text,
                 ]),
@@ -163,7 +165,7 @@ class QuizController extends Controller
         $answers = Answer::with(['question.options', 'question.category', 'selectedOption'])
             ->where('quiz_attempt_id', $attempt->id)
             ->get()
-            ->map(fn ($a) => [
+            ->map(fn($a) => [
                 'question_id'          => $a->question_id,
                 'question_text'        => $a->question->question_text,
                 'image_path'           => $a->question->image_path,
@@ -175,7 +177,7 @@ class QuizController extends Controller
                 'is_correct'           => $a->is_correct,
                 'selected_option'      => $a->selectedOption?->option_text,
                 'correct_option'       => $a->question->options->firstWhere('is_correct', true)?->option_text,
-                'all_options'          => $a->question->options->map(fn ($o) => [
+                'all_options'          => $a->question->options->map(fn($o) => [
                     'id'         => $o->id,
                     'text'       => $o->option_text,
                     'is_correct' => $o->is_correct,
@@ -212,8 +214,7 @@ class QuizController extends Controller
         DB::transaction(function () use ($attempt, $answers) {
             // Collect valid question IDs that still exist in the DB from this attempt.
             // Questions may have been deleted by an admin after the quiz started.
-            $validQuestionIds = \App\Models\Question::
-                whereIn('id', $attempt->question_ids ?? [])
+            $validQuestionIds = \App\Models\Question::whereIn('id', $attempt->question_ids ?? [])
                 ->pluck('id')
                 ->flip(); // keyed by id for O(1) lookup
 

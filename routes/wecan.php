@@ -2,14 +2,15 @@
 
 use App\Http\Controllers\Admin;
 use App\Http\Controllers\PaymentController;
-use App\Http\Controllers\Admin\PricingPlanController;
 use App\Http\Controllers\QuizController;
 use App\Http\Controllers\StudentDashboardController;
+use App\Services\ItecPayment;
 use Illuminate\Support\Facades\Route;
 
-// ── Student routes ─────────────────────────────────────────────────────────
+// ── Student routes ─────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'verified', 'role:student|admin'])->group(function () {
 
+    // Student dashboard (replaces default inertia dashboard)
     Route::get('student/dashboard', [StudentDashboardController::class, 'index'])->name('student.dashboard');
 
     // Payments
@@ -18,21 +19,19 @@ Route::middleware(['auth', 'verified', 'role:student|admin'])->group(function ()
     Route::get('student/payment/success/{payment}', [PaymentController::class, 'success'])->name('student.payment.success');
 
     // Quiz
-    Route::post('quiz/start', [QuizController::class, 'start'])->name('quiz.start');
-    Route::get('quiz/{attempt}', [QuizController::class, 'take'])->name('quiz.take');
-    Route::post('quiz/{attempt}/answer', [QuizController::class, 'saveAnswer'])->name('quiz.answer');
-    Route::post('quiz/{attempt}/submit', [QuizController::class, 'submit'])->name('quiz.submit');
-    Route::get('quiz/{attempt}/results', [QuizController::class, 'results'])->name('quiz.results');
+    Route::post('quiz/start', [QuizController::class, 'start'])->name('quiz.start')->middleware('paid.access');
+    Route::get('quiz/{attempt}', [QuizController::class, 'take'])->name('quiz.take')->middleware('paid.access');
+    Route::post('quiz/{attempt}/answer', [QuizController::class, 'saveAnswer'])->name('quiz.answer')->middleware('paid.access');
+    Route::post('quiz/{attempt}/submit', [QuizController::class, 'submit'])->name('quiz.submit')->middleware('paid.access');
+    Route::get('quiz/{attempt}/results', [QuizController::class, 'results'])->name('quiz.results')->middleware('paid.access');
 });
 
-// ── ITEC Payment webhook (no auth — signed by ITEC key) ───────────────────
-Route::post('webhooks/itec/payment', [PaymentController::class, 'webhook'])->name('webhooks.itec.payment');
 
-// ── Admin routes ───────────────────────────────────────────────────────────
+
+// ── Admin routes ───────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
 
     Route::get('/', [Admin\DashboardController::class, 'index'])->name('dashboard');
-
     // Questions
     Route::get('questions', [Admin\QuestionController::class, 'index'])->name('questions.index');
     Route::get('questions/create', [Admin\QuestionController::class, 'create'])->name('questions.create');
@@ -52,11 +51,13 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     // Payments
     Route::get('payments', [Admin\PaymentController::class, 'index'])->name('payments.index');
     Route::post('payments/{payment}/refund', [Admin\PaymentController::class, 'refund'])->name('payments.refund');
+});
 
-    // Pricing Plans
-    Route::get('pricing-plans', [PricingPlanController::class, 'index'])->name('pricing-plans.index');
-    Route::post('pricing-plans', [PricingPlanController::class, 'store'])->name('pricing-plans.store');
-    Route::put('pricing-plans/{pricingPlan}', [PricingPlanController::class, 'update'])->name('pricing-plans.update');
-    Route::delete('pricing-plans/{pricingPlan}', [PricingPlanController::class, 'destroy'])->name('pricing-plans.destroy');
-    Route::post('pricing-plans/{pricingPlan}/toggle', [PricingPlanController::class, 'toggleActive'])->name('pricing-plans.toggle');
+
+// testing
+Route::get("/pay", function () {
+    $itec = new ItecPayment();
+    $response = $itec->pay(5000, "0789638247");
+
+    return $response->json();
 });
