@@ -1,7 +1,6 @@
 /* eslint-disable import/order */
 import {
     CheckCircle,
-    CreditCard,
     Shield,
     Smartphone,
     AlertCircle,
@@ -9,20 +8,23 @@ import {
     XCircle,
     Sparkles,
     ChevronRight,
+    Star,
+    Zap,
+    Car,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
-import type { PaymentRecord, WeCanPageProps } from '@/types/wecan';
+import type { PaymentRecord, PricingPlan, WeCanPageProps } from '@/types/wecan';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/student/dashboard' },
@@ -33,6 +35,7 @@ type PaymentMethod = 'mtn_momo' | 'airtel_money';
 
 type Props = WeCanPageProps<{
     hasAccess: boolean;
+    plans: PricingPlan[];
     payments: PaymentRecord[];
 }>;
 
@@ -71,7 +74,7 @@ const statusConfig = {
     },
 };
 
-const methods = [
+const momoMethods = [
     {
         id: 'mtn_momo' as PaymentMethod,
         label: 'MTN Mobile Money',
@@ -94,7 +97,63 @@ const methods = [
     },
 ];
 
-export default function Payment({ hasAccess, payments }: Props) {
+// Icon per plan tier
+function PlanIcon({
+    amount,
+    className,
+}: {
+    amount: number;
+    className?: string;
+}) {
+    if (amount >= 100000) return <Car className={className} />;
+    if (amount >= 4000) return <Star className={className} />;
+    if (amount >= 2500) return <Zap className={className} />;
+    return <Sparkles className={className} />;
+}
+
+// Duration accent color per tier
+function planAccent(amount: number) {
+    if (amount >= 100000)
+        return {
+            ring: 'ring-violet-400/60',
+            glow: 'shadow-violet-500/20',
+            badge: 'bg-violet-600',
+            bar: 'from-violet-600 to-purple-700',
+            icon: 'text-violet-500',
+            selected: 'ring-violet-500 bg-violet-50/60 dark:bg-violet-950/30',
+        };
+    if (amount >= 4000)
+        return {
+            ring: 'ring-amber-400/60',
+            glow: 'shadow-amber-500/20',
+            badge: 'bg-amber-500',
+            bar: 'from-amber-500 to-orange-500',
+            icon: 'text-amber-500',
+            selected: 'ring-amber-500 bg-amber-50/60 dark:bg-amber-950/30',
+        };
+    if (amount >= 2500)
+        return {
+            ring: 'ring-blue-400/60',
+            glow: 'shadow-blue-500/20',
+            badge: 'bg-blue-600',
+            bar: 'from-blue-500 to-cyan-500',
+            icon: 'text-blue-500',
+            selected: 'ring-blue-500 bg-blue-50/60 dark:bg-blue-950/30',
+        };
+    return {
+        ring: 'ring-slate-400/40',
+        glow: 'shadow-slate-500/10',
+        badge: 'bg-slate-500',
+        bar: 'from-slate-500 to-slate-600',
+        icon: 'text-slate-500',
+        selected: 'ring-slate-400 bg-slate-50/60 dark:bg-slate-900/30',
+    };
+}
+
+export default function Payment({ hasAccess, plans, payments }: Props) {
+    const [selectedPlan, setSelectedPlan] = useState<PricingPlan | null>(
+        plans.find((p) => p.is_featured) ?? plans[0] ?? null,
+    );
     const [method, setMethod] = useState<PaymentMethod>('mtn_momo');
     const [showError, setShowError] = useState(false);
 
@@ -103,6 +162,7 @@ export default function Payment({ hasAccess, payments }: Props) {
     const { data, setData, post, processing, errors, reset } = useForm({
         phone: '',
         payment_method: 'mtn_momo',
+        plan_id: selectedPlan?.id ?? '',
     });
 
     useEffect(() => {
@@ -113,7 +173,12 @@ export default function Payment({ hasAccess, payments }: Props) {
         }
     }, [pageErrors]);
 
-    const selectedMethod = methods.find((m) => m.id === method)!;
+    const selectedMethod = momoMethods.find((m) => m.id === method)!;
+
+    const handlePlanSelect = (plan: PricingPlan) => {
+        setSelectedPlan(plan);
+        setData('plan_id', plan.id);
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -131,13 +196,13 @@ export default function Payment({ hasAccess, payments }: Props) {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Get Access" />
 
-            <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-4 md:p-6">
+            <div className="container mx-auto flex w-full flex-col gap-6 p-4 md:p-6">
                 <Heading
                     title="Get Access"
-                    description="Unlock unlimited quizzes for 30 days with a single payment."
+                    description="Choose a plan that fits your schedule and start practising today."
                 />
 
-                {/* Active Access Banner */}
+                {/* Active access banner */}
                 {hasAccess && (
                     <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 p-4 dark:border-emerald-800 dark:from-emerald-950/40 dark:to-teal-950/40">
                         <div className="flex items-center gap-3">
@@ -150,7 +215,7 @@ export default function Payment({ hasAccess, payments }: Props) {
                                 </p>
                                 <p className="mt-0.5 text-xs text-emerald-600 dark:text-emerald-400">
                                     You can take quizzes freely. You may still
-                                    renew early below.
+                                    renew or upgrade below.
                                 </p>
                             </div>
                         </div>
@@ -158,7 +223,7 @@ export default function Payment({ hasAccess, payments }: Props) {
                     </div>
                 )}
 
-                {/* Error Alert */}
+                {/* Error alert */}
                 {(showError || pageErrors?.payment) && (
                     <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950/40">
                         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/60">
@@ -176,181 +241,323 @@ export default function Payment({ hasAccess, payments }: Props) {
                     </div>
                 )}
 
-                {/* Pricing Card */}
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 text-white shadow-xl dark:from-slate-900 dark:to-black">
-                    <div className="pointer-events-none absolute -top-8 -right-8 h-40 w-40 rounded-full bg-white/5" />
-                    <div className="pointer-events-none absolute top-8 -right-2 h-24 w-24 rounded-full bg-white/5" />
-                    <div className="relative p-6">
-                        <div className="flex items-start justify-between gap-4">
-                            <div>
-                                <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-medium text-white/80">
-                                    Full Access
-                                </span>
-                                <h2 className="mt-2 text-2xl font-bold tracking-tight">
-                                    Unlimited Quizzes
-                                </h2>
-                                <p className="mt-1 text-sm text-white/60">
-                                    30-day access · All features included
-                                </p>
-                            </div>
-                            <div className="shrink-0 text-right">
-                                <p className="text-3xl font-extrabold tabular-nums">
-                                    5,000
-                                </p>
-                                <p className="text-sm text-white/60">
-                                    RWF / month
-                                </p>
-                            </div>
-                        </div>
-                        <div className="mt-5 grid grid-cols-2 gap-2">
-                            {[
-                                'Unlimited quiz attempts',
-                                '400+ question bank',
-                                'Instant results & explanations',
-                                'Progress tracking',
-                            ].map((f) => (
-                                <div
-                                    key={f}
-                                    className="flex items-center gap-2 text-sm text-white/80"
+                {/* ── Plan Grid ── */}
+                <div>
+                    <p className="mb-3 px-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                        Choose a Plan
+                    </p>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {plans.map((plan) => {
+                            const accent = planAccent(plan.amount);
+                            const isSelected = selectedPlan?.id === plan.id;
+                            const isLarge = plan.amount >= 100000;
+
+                            return (
+                                <button
+                                    key={plan.id}
+                                    type="button"
+                                    onClick={() => handlePlanSelect(plan)}
+                                    className={cn(
+                                        'relative rounded-2xl border-2 p-4 text-left transition-all duration-200 focus:outline-none',
+                                        isSelected
+                                            ? cn(
+                                                  'border-transparent shadow-lg ring-2',
+                                                  accent.ring,
+                                                  accent.selected,
+                                                  accent.glow,
+                                              )
+                                            : 'border-border hover:border-border/80 hover:bg-muted/30',
+                                        isLarge && 'sm:col-span-2',
+                                    )}
                                 >
-                                    <CheckCircle className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
-                                    {f}
-                                </div>
-                            ))}
-                        </div>
+                                    {/* Badge */}
+                                    {plan.badge_label && (
+                                        <span
+                                            className={cn(
+                                                'absolute -top-2.5 left-4 rounded-full px-2.5 py-0.5 text-[10px] font-bold text-white shadow-sm',
+                                                accent.badge,
+                                            )}
+                                        >
+                                            {plan.badge_label}
+                                        </span>
+                                    )}
+
+                                    <div
+                                        className={cn(
+                                            'flex items-start gap-3',
+                                            isLarge && 'sm:items-center',
+                                        )}
+                                    >
+                                        {/* Icon */}
+                                        <div
+                                            className={cn(
+                                                'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted/60',
+                                                isSelected &&
+                                                    'bg-white/70 dark:bg-black/20',
+                                            )}
+                                        >
+                                            <PlanIcon
+                                                amount={plan.amount}
+                                                className={cn(
+                                                    'h-5 w-5',
+                                                    accent.icon,
+                                                )}
+                                            />
+                                        </div>
+
+                                        {/* Info */}
+                                        <div className="min-w-0 flex-1">
+                                            <div
+                                                className={cn(
+                                                    'flex items-start justify-between gap-2',
+                                                    isLarge &&
+                                                        'sm:items-center',
+                                                )}
+                                            >
+                                                <div>
+                                                    <p className="text-sm leading-tight font-bold text-foreground">
+                                                        {plan.name}
+                                                    </p>
+                                                    <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
+                                                        {plan.description}
+                                                    </p>
+                                                </div>
+                                                <div className="shrink-0 text-right">
+                                                    <p className="text-base leading-tight font-extrabold tabular-nums">
+                                                        {Number(
+                                                            plan.amount,
+                                                        ).toLocaleString()}
+                                                        <span className="ml-1 text-xs font-semibold text-muted-foreground">
+                                                            {plan.currency}
+                                                        </span>
+                                                    </p>
+                                                    <span className="text-[10px] whitespace-nowrap text-muted-foreground">
+                                                        {plan.duration_label}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {/* Features */}
+                                            {plan.features &&
+                                                plan.features.length > 0 && (
+                                                    <div
+                                                        className={cn(
+                                                            'mt-2 flex flex-wrap gap-x-3 gap-y-0.5',
+                                                            isLarge &&
+                                                                'sm:grid sm:grid-cols-2',
+                                                        )}
+                                                    >
+                                                        {plan.features.map(
+                                                            (f) => (
+                                                                <span
+                                                                    key={f}
+                                                                    className="flex items-center gap-1 text-[10px] text-muted-foreground"
+                                                                >
+                                                                    <CheckCircle
+                                                                        className={cn(
+                                                                            'h-3 w-3 shrink-0',
+                                                                            accent.icon,
+                                                                        )}
+                                                                    />
+                                                                    {f}
+                                                                </span>
+                                                            ),
+                                                        )}
+                                                    </div>
+                                                )}
+                                        </div>
+                                    </div>
+
+                                    {/* Selected indicator */}
+                                    {isSelected && (
+                                        <div className="absolute top-3 right-3">
+                                            <div
+                                                className={cn(
+                                                    'flex h-5 w-5 items-center justify-center rounded-full',
+                                                    accent.badge,
+                                                )}
+                                            >
+                                                <CheckCircle className="h-3.5 w-3.5 text-white" />
+                                            </div>
+                                        </div>
+                                    )}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 
-                {/* Payment Form Card */}
-                <Card className="overflow-hidden border-0 shadow-sm ring-1 ring-border/60">
-                    <CardHeader className="border-b bg-muted/30 px-6 py-4">
-                        <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                            <CreditCard className="h-4 w-4 text-muted-foreground" />
-                            Pay with Mobile Money
-                        </CardTitle>
-                    </CardHeader>
-
-                    <CardContent className="space-y-5 p-6">
-                        {/* Method selector */}
-                        <div className="grid grid-cols-2 gap-3">
-                            {methods.map((m) => {
-                                const isSelected = method === m.id;
-                                return (
-                                    <button
-                                        key={m.id}
-                                        type="button"
-                                        onClick={() => {
-                                            setMethod(m.id);
-                                            setData('payment_method', m.id);
-                                        }}
-                                        className={cn(
-                                            'relative flex flex-col items-center gap-2 rounded-xl border-2 p-4 text-sm font-medium transition-all duration-200',
-                                            isSelected
-                                                ? cn('border-primary', m.bg)
-                                                : 'border-border text-muted-foreground hover:border-border/80 hover:bg-muted/30',
-                                        )}
-                                    >
-                                        {isSelected && (
-                                            <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
-                                        )}
-                                        <span className="text-2xl">
-                                            {m.emoji}
-                                        </span>
-                                        <span
-                                            className={cn(
-                                                'text-center text-xs leading-tight font-semibold',
-                                                isSelected
-                                                    ? m.textActive
-                                                    : 'text-muted-foreground',
-                                            )}
-                                        >
-                                            {m.label}
-                                        </span>
-                                    </button>
-                                );
-                            })}
-                        </div>
-
-                        {/* Form */}
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <div className="space-y-2">
-                                <Label
-                                    htmlFor="phone"
-                                    className="flex items-center gap-1.5 text-sm font-medium"
-                                >
-                                    <Smartphone className="h-3.5 w-3.5 text-muted-foreground" />
-                                    Phone Number
-                                </Label>
-                                <Input
-                                    id="phone"
-                                    type="tel"
-                                    inputMode="numeric"
-                                    placeholder={selectedMethod.placeholder}
-                                    value={data.phone}
-                                    onChange={(e) =>
-                                        setData('phone', e.target.value)
-                                    }
-                                    className={cn(
-                                        'h-11 text-base transition-shadow',
-                                        errors.phone &&
-                                            'border-red-400 focus-visible:ring-red-300',
-                                    )}
-                                />
-                                {errors.phone && (
-                                    <p className="mt-1 flex items-center gap-1 text-xs text-red-500">
-                                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                                        {Array.isArray(errors.phone)
-                                            ? errors.phone[0]
-                                            : errors.phone}
-                                    </p>
-                                )}
-                            </div>
-
-                            {data.phone && (
-                                <div className="rounded-xl border border-border/60 bg-muted/60 px-4 py-3 text-sm text-muted-foreground">
-                                    A push notification will be sent to{' '}
-                                    <span className="font-semibold text-foreground">
-                                        {data.phone}
-                                    </span>{' '}
-                                    requesting confirmation of{' '}
-                                    <span className="font-semibold text-foreground">
-                                        5,000 RWF
-                                    </span>
-                                    .
-                                </div>
+                {/* ── Payment form ── */}
+                {selectedPlan && (
+                    <Card className="overflow-hidden border-0 shadow-sm ring-1 ring-border/60">
+                        {/* Summary bar */}
+                        <div
+                            className={cn(
+                                'h-1.5 w-full bg-gradient-to-r',
+                                planAccent(selectedPlan.amount).bar,
                             )}
-
-                            <Button
-                                type="submit"
-                                className="h-12 w-full gap-2 text-base font-semibold shadow-sm"
-                                disabled={processing || !data.phone}
-                            >
-                                {processing ? (
-                                    <>
-                                        <Spinner className="h-4 w-4" />
-                                        Processing payment…
-                                    </>
-                                ) : (
-                                    <>
-                                        Pay 5,000 RWF via{' '}
-                                        {selectedMethod.shortLabel}
-                                        <ChevronRight className="h-4 w-4" />
-                                    </>
-                                )}
-                            </Button>
-
-                            <div className="flex items-center justify-center gap-1.5 pt-1 text-xs text-muted-foreground">
-                                <Shield className="h-3.5 w-3.5" />
-                                Payments are secure and processed by ITEC
+                        />
+                        <CardContent className="space-y-5 p-5">
+                            {/* Selected plan summary */}
+                            <div className="flex items-center justify-between gap-4 rounded-xl bg-muted/40 px-4 py-3">
+                                <div>
+                                    <p className="text-xs text-muted-foreground">
+                                        Selected plan
+                                    </p>
+                                    <p className="text-sm font-bold text-foreground">
+                                        {selectedPlan.name} ·{' '}
+                                        {selectedPlan.duration_label}
+                                    </p>
+                                </div>
+                                <p className="shrink-0 text-xl font-extrabold tabular-nums">
+                                    {Number(
+                                        selectedPlan.amount,
+                                    ).toLocaleString()}
+                                    <span className="ml-1 text-xs font-semibold text-muted-foreground">
+                                        {selectedPlan.currency}
+                                    </span>
+                                </p>
                             </div>
-                        </form>
-                    </CardContent>
-                </Card>
 
-                {/* Payment History */}
+                            {/* Method selector */}
+                            <div>
+                                <p className="mb-2 text-xs font-semibold text-muted-foreground">
+                                    Pay with
+                                </p>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {momoMethods.map((m) => {
+                                        const isActive = method === m.id;
+                                        return (
+                                            <button
+                                                key={m.id}
+                                                type="button"
+                                                onClick={() => {
+                                                    setMethod(m.id);
+                                                    setData(
+                                                        'payment_method',
+                                                        m.id,
+                                                    );
+                                                }}
+                                                className={cn(
+                                                    'relative flex flex-col items-center gap-1.5 rounded-xl border-2 p-3 text-sm font-medium transition-all duration-200',
+                                                    isActive
+                                                        ? cn(
+                                                              'border-primary',
+                                                              m.bg,
+                                                          )
+                                                        : 'border-border text-muted-foreground hover:border-border/80 hover:bg-muted/30',
+                                                )}
+                                            >
+                                                {isActive && (
+                                                    <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
+                                                )}
+                                                <span className="text-xl">
+                                                    {m.emoji}
+                                                </span>
+                                                <span
+                                                    className={cn(
+                                                        'text-center text-[11px] leading-tight font-semibold',
+                                                        isActive
+                                                            ? m.textActive
+                                                            : 'text-muted-foreground',
+                                                    )}
+                                                >
+                                                    {m.label}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Phone form */}
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label
+                                        htmlFor="phone"
+                                        className="flex items-center gap-1.5 text-sm font-medium"
+                                    >
+                                        <Smartphone className="h-3.5 w-3.5 text-muted-foreground" />
+                                        Phone Number
+                                    </Label>
+                                    <Input
+                                        id="phone"
+                                        type="tel"
+                                        inputMode="numeric"
+                                        placeholder={selectedMethod.placeholder}
+                                        value={data.phone}
+                                        onChange={(e) =>
+                                            setData('phone', e.target.value)
+                                        }
+                                        className={cn(
+                                            'h-11 text-base',
+                                            errors.phone &&
+                                                'border-red-400 focus-visible:ring-red-300',
+                                        )}
+                                    />
+                                    {errors.phone && (
+                                        <p className="flex items-center gap-1 text-xs text-red-500">
+                                            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                                            {Array.isArray(errors.phone)
+                                                ? errors.phone[0]
+                                                : errors.phone}
+                                        </p>
+                                    )}
+                                </div>
+
+                                {data.phone && (
+                                    <div className="rounded-xl border border-border/60 bg-muted/60 px-4 py-3 text-sm text-muted-foreground">
+                                        A push notification will be sent to{' '}
+                                        <span className="font-semibold text-foreground">
+                                            {data.phone}
+                                        </span>{' '}
+                                        requesting confirmation of{' '}
+                                        <span className="font-semibold text-foreground">
+                                            {Number(
+                                                selectedPlan.amount,
+                                            ).toLocaleString()}{' '}
+                                            {selectedPlan.currency}
+                                        </span>
+                                        .
+                                    </div>
+                                )}
+
+                                <Button
+                                    type="submit"
+                                    className="h-12 w-full gap-2 text-base font-semibold shadow-sm"
+                                    disabled={processing || !data.phone}
+                                >
+                                    {processing ? (
+                                        <>
+                                            <Spinner className="h-4 w-4" />{' '}
+                                            Processing payment…
+                                        </>
+                                    ) : (
+                                        <>
+                                            Pay{' '}
+                                            {Number(
+                                                selectedPlan.amount,
+                                            ).toLocaleString()}{' '}
+                                            {selectedPlan.currency} via{' '}
+                                            {selectedMethod.shortLabel}{' '}
+                                            <ChevronRight className="h-4 w-4" />
+                                        </>
+                                    )}
+                                </Button>
+
+                                <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                                    <Shield className="h-3.5 w-3.5" />
+                                    Payments are secure and processed by ITEC
+                                </div>
+                            </form>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* ── Payment History ── */}
                 {payments.length > 0 && (
                     <div>
-                        <h3 className="mb-3 px-1 text-sm font-semibold text-muted-foreground">
+                        <h3 className="mb-3 px-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                             Payment History
                         </h3>
                         <div className="flex flex-col gap-2">
@@ -364,13 +571,13 @@ export default function Payment({ hasAccess, payments }: Props) {
                                     <div
                                         key={p.id}
                                         className={cn(
-                                            'flex items-center justify-between rounded-xl border p-4 transition-colors',
+                                            'flex items-center justify-between rounded-xl border p-3.5',
                                             cfg.bg,
                                             cfg.border,
                                         )}
                                     >
                                         <div className="flex items-center gap-3">
-                                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/70 dark:bg-black/20">
+                                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/70 dark:bg-black/20">
                                                 <Icon
                                                     className={cn(
                                                         'h-4 w-4',

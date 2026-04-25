@@ -23,11 +23,7 @@ import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
-import type {
-    AdminPaymentRow,
-    PaginatedData,
-    WeCanPageProps,
-} from '@/types/wecan';
+import type { AdminPaymentRow, PaginatedData, WeCanPageProps } from '@/types/wecan';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Admin', href: '/admin' },
@@ -95,10 +91,7 @@ const statsCards = (totals: Totals) => [
         icon: TrendingUp,
         iconBg: 'bg-blue-100 dark:bg-blue-950/60',
         iconColor: 'text-blue-600',
-        sublabel: new Date().toLocaleString('default', {
-            month: 'long',
-            year: 'numeric',
-        }),
+        sublabel: new Date().toLocaleString('default', { month: 'long', year: 'numeric' }),
     },
     {
         label: 'Pending Payments',
@@ -116,18 +109,10 @@ export default function PaymentsIndex({ payments, totals, filters }: Props) {
     const [method, setMethod] = useState(filters.method ?? '');
 
     const apply = () =>
-        router.get(
-            '/admin/payments',
-            { search, status, method },
-            { preserveState: true },
-        );
+        router.get('/admin/payments', { search, status, method }, { preserveState: true });
 
     const refund = (id: number) => {
-        if (
-            confirm(
-                'Are you sure you want to refund this payment? This action cannot be undone.',
-            )
-        ) {
+        if (confirm('Are you sure you want to refund this payment? This action cannot be undone.')) {
             router.post(`/admin/payments/${id}/refund`);
         }
     };
@@ -146,30 +131,22 @@ export default function PaymentsIndex({ payments, totals, filters }: Props) {
             <Head title="Payments" />
 
             <div className="flex flex-col gap-6 p-4 md:p-6">
-                <Heading
-                    title="Payments"
-                    description="Monitor transactions and manage student access."
-                />
+                <Heading title="Payments" description="Monitor transactions and manage student access." />
 
                 {/* Stats row */}
                 <div className="grid gap-4 sm:grid-cols-3">
                     {statsCards(totals).map((s) => (
-                        <Card
-                            key={s.label}
-                            className="overflow-hidden border-0 shadow-sm ring-1 ring-border/60"
-                        >
+                        <Card key={s.label} className="overflow-hidden border-0 shadow-sm ring-1 ring-border/60">
                             <CardContent className="p-5">
                                 <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0 flex-1">
-                                        <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                                             {s.label}
                                         </p>
-                                        <p className="mt-1.5 truncate text-2xl font-bold tabular-nums">
+                                        <p className="mt-1.5 text-2xl font-bold tabular-nums truncate">
                                             {s.value}
                                         </p>
-                                        <p className="mt-0.5 text-xs text-muted-foreground">
-                                            {s.sublabel}
-                                        </p>
+                                        <p className="mt-0.5 text-xs text-muted-foreground">{s.sublabel}</p>
                                     </div>
                                     <div
                                         className={cn(
@@ -177,12 +154,7 @@ export default function PaymentsIndex({ payments, totals, filters }: Props) {
                                             s.iconBg,
                                         )}
                                     >
-                                        <s.icon
-                                            className={cn(
-                                                'h-5 w-5',
-                                                s.iconColor,
-                                            )}
-                                        />
+                                        <s.icon className={cn('h-5 w-5', s.iconColor)} />
                                     </div>
                                 </div>
                             </CardContent>
@@ -194,20 +166,18 @@ export default function PaymentsIndex({ payments, totals, filters }: Props) {
                 <Card className="border-0 shadow-sm ring-1 ring-border/60">
                     <CardContent className="p-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                            <div className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground shrink-0">
                                 <SlidersHorizontal className="h-3.5 w-3.5" />
                                 Filters
                             </div>
                             <div className="relative flex-1">
                                 <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                                 <Input
-                                    className="h-9 pl-9 text-sm"
+                                    className="pl-9 h-9 text-sm"
                                     placeholder="Search by student name or email…"
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    onKeyDown={(e) =>
-                                        e.key === 'Enter' && apply()
-                                    }
+                                    onKeyDown={(e) => e.key === 'Enter' && apply()}
                                 />
                             </div>
                             <select
@@ -216,17 +186,8 @@ export default function PaymentsIndex({ payments, totals, filters }: Props) {
                                 className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground"
                             >
                                 <option value="">All Statuses</option>
-                                {[
-                                    'pending',
-                                    'completed',
-                                    'failed',
-                                    'refunded',
-                                ].map((s) => (
-                                    <option
-                                        key={s}
-                                        value={s}
-                                        className="capitalize"
-                                    >
+                                {['pending', 'completed', 'failed', 'refunded'].map((s) => (
+                                    <option key={s} value={s} className="capitalize">
                                         {s.charAt(0).toUpperCase() + s.slice(1)}
                                     </option>
                                 ))}
@@ -237,23 +198,14 @@ export default function PaymentsIndex({ payments, totals, filters }: Props) {
                                 className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground"
                             >
                                 <option value="">All Methods</option>
-                                {[
-                                    'mtn_momo',
-                                    'airtel_money',
-                                    'stripe',
-                                    'cash',
-                                ].map((m) => (
+                                {['mtn_momo', 'airtel_money', 'stripe', 'cash'].map((m) => (
                                     <option key={m} value={m}>
                                         {m.replace(/_/g, ' ').toUpperCase()}
                                     </option>
                                 ))}
                             </select>
-                            <div className="flex shrink-0 gap-2">
-                                <Button
-                                    size="sm"
-                                    className="h-9"
-                                    onClick={apply}
-                                >
+                            <div className="flex gap-2 shrink-0">
+                                <Button size="sm" className="h-9" onClick={apply}>
                                     Apply
                                 </Button>
                                 {hasFilters && (
@@ -272,7 +224,7 @@ export default function PaymentsIndex({ payments, totals, filters }: Props) {
                 </Card>
 
                 {/* Payments table */}
-                <Card className="overflow-hidden border-0 py-0 shadow-sm ring-1 ring-border/60">
+                <Card className="overflow-hidden border-0 shadow-sm ring-1 ring-border/60 py-0">
                     <CardContent className="p-0">
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
@@ -289,7 +241,7 @@ export default function PaymentsIndex({ payments, totals, filters }: Props) {
                                         ].map((h) => (
                                             <th
                                                 key={h}
-                                                className="px-4 py-3 text-left text-xs font-semibold tracking-wider whitespace-nowrap text-muted-foreground uppercase"
+                                                className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap"
                                             >
                                                 {h}
                                             </th>
@@ -299,14 +251,13 @@ export default function PaymentsIndex({ payments, totals, filters }: Props) {
                                 <tbody className="divide-y divide-border/60">
                                     {payments.data.map((p) => {
                                         const cfg =
-                                            statusConfig[
-                                                p.status as keyof typeof statusConfig
-                                            ] ?? statusConfig.pending;
+                                            statusConfig[p.status as keyof typeof statusConfig] ??
+                                            statusConfig.pending;
                                         const Icon = cfg.icon;
                                         return (
                                             <tr
                                                 key={p.id}
-                                                className="group transition-colors hover:bg-muted/30"
+                                                className="group hover:bg-muted/30 transition-colors"
                                             >
                                                 {/* Student */}
                                                 <td className="px-4 py-3">
@@ -314,11 +265,7 @@ export default function PaymentsIndex({ payments, totals, filters }: Props) {
                                                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
                                                             {p.user_name
                                                                 .split(' ')
-                                                                .map(
-                                                                    (
-                                                                        n: string,
-                                                                    ) => n[0],
-                                                                )
+                                                                .map((n: string) => n[0])
                                                                 .join('')
                                                                 .toUpperCase()
                                                                 .slice(0, 2)}
@@ -337,9 +284,7 @@ export default function PaymentsIndex({ payments, totals, filters }: Props) {
                                                 {/* Amount */}
                                                 <td className="px-4 py-3">
                                                     <span className="font-bold tabular-nums">
-                                                        {Number(
-                                                            p.amount,
-                                                        ).toLocaleString()}
+                                                        {Number(p.amount).toLocaleString()}
                                                     </span>
                                                     <span className="ml-1 text-xs text-muted-foreground">
                                                         {p.currency}
@@ -348,11 +293,8 @@ export default function PaymentsIndex({ payments, totals, filters }: Props) {
 
                                                 {/* Method */}
                                                 <td className="px-4 py-3">
-                                                    <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs font-medium whitespace-nowrap text-muted-foreground capitalize">
-                                                        {p.payment_method.replace(
-                                                            /_/g,
-                                                            ' ',
-                                                        )}
+                                                    <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground capitalize whitespace-nowrap">
+                                                        {p.payment_method.replace(/_/g, ' ')}
                                                     </span>
                                                 </td>
 
@@ -368,7 +310,7 @@ export default function PaymentsIndex({ payments, totals, filters }: Props) {
                                                     >
                                                         <span
                                                             className={cn(
-                                                                'h-1.5 w-1.5 shrink-0 rounded-full',
+                                                                'h-1.5 w-1.5 rounded-full shrink-0',
                                                                 cfg.dot,
                                                             )}
                                                         />
@@ -377,30 +319,22 @@ export default function PaymentsIndex({ payments, totals, filters }: Props) {
                                                 </td>
 
                                                 {/* Transaction ID */}
-                                                <td className="max-w-[160px] truncate px-4 py-3 font-mono text-xs text-muted-foreground">
+                                                <td className="px-4 py-3 font-mono text-xs text-muted-foreground max-w-[160px] truncate">
                                                     {p.transaction_id ? (
-                                                        <span
-                                                            title={
-                                                                p.transaction_id
-                                                            }
-                                                        >
+                                                        <span title={p.transaction_id}>
                                                             {p.transaction_id}
                                                         </span>
                                                     ) : (
-                                                        <span className="text-border">
-                                                            —
-                                                        </span>
+                                                        <span className="text-border">—</span>
                                                     )}
                                                 </td>
 
                                                 {/* Date */}
-                                                <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
+                                                <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
                                                     {p.paid_at ? (
                                                         <div>
                                                             <p className="text-sm font-medium text-foreground">
-                                                                {new Date(
-                                                                    p.paid_at,
-                                                                ).toLocaleDateString(
+                                                                {new Date(p.paid_at).toLocaleDateString(
                                                                     'en-RW',
                                                                     {
                                                                         day: 'numeric',
@@ -409,9 +343,7 @@ export default function PaymentsIndex({ payments, totals, filters }: Props) {
                                                                 )}
                                                             </p>
                                                             <p className="text-xs text-muted-foreground">
-                                                                {new Date(
-                                                                    p.paid_at,
-                                                                ).getFullYear()}
+                                                                {new Date(p.paid_at).getFullYear()}
                                                             </p>
                                                         </div>
                                                     ) : (
@@ -423,15 +355,12 @@ export default function PaymentsIndex({ payments, totals, filters }: Props) {
 
                                                 {/* Actions */}
                                                 <td className="px-4 py-3 text-right">
-                                                    {p.status ===
-                                                        'completed' && (
+                                                    {p.status === 'completed' && (
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
-                                                            className="h-7 px-2 text-xs text-destructive opacity-0 transition-opacity group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive"
-                                                            onClick={() =>
-                                                                refund(p.id)
-                                                            }
+                                                            className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            onClick={() => refund(p.id)}
                                                         >
                                                             Refund
                                                         </Button>
@@ -443,19 +372,13 @@ export default function PaymentsIndex({ payments, totals, filters }: Props) {
 
                                     {payments.data.length === 0 && (
                                         <tr>
-                                            <td
-                                                colSpan={7}
-                                                className="py-16 text-center"
-                                            >
+                                            <td colSpan={7} className="py-16 text-center">
                                                 <div className="flex flex-col items-center gap-2 text-muted-foreground">
                                                     <CreditCard className="h-8 w-8 opacity-30" />
-                                                    <p className="text-sm font-medium">
-                                                        No payments found
-                                                    </p>
+                                                    <p className="text-sm font-medium">No payments found</p>
                                                     {hasFilters && (
                                                         <p className="text-xs">
-                                                            Try adjusting your
-                                                            filters
+                                                            Try adjusting your filters
                                                         </p>
                                                     )}
                                                 </div>
@@ -468,7 +391,7 @@ export default function PaymentsIndex({ payments, totals, filters }: Props) {
 
                         {/* Pagination */}
                         {payments.links && payments.data.length > 0 && (
-                            <div className="flex items-center justify-between border-t bg-muted/20 px-4 py-3">
+                            <div className="flex items-center justify-between border-t px-4 py-3 bg-muted/20">
                                 <p className="text-xs text-muted-foreground">
                                     Showing{' '}
                                     <span className="font-medium text-foreground">
@@ -482,23 +405,17 @@ export default function PaymentsIndex({ payments, totals, filters }: Props) {
                                 </p>
                                 <div className="flex items-center gap-1">
                                     {payments.links.map((l, i) => {
-                                        const isPrev =
-                                            l.label.includes('Previous') ||
-                                            l.label.includes('&laquo;');
-                                        const isNext =
-                                            l.label.includes('Next') ||
-                                            l.label.includes('&raquo;');
+                                        const isPrev = l.label.includes('Previous') || l.label.includes('&laquo;');
+                                        const isNext = l.label.includes('Next') || l.label.includes('&raquo;');
                                         const isNum = !isPrev && !isNext;
 
                                         return (
                                             <button
                                                 key={i}
-                                                onClick={() =>
-                                                    l.url && router.visit(l.url)
-                                                }
+                                                onClick={() => l.url && router.visit(l.url)}
                                                 disabled={!l.url}
                                                 className={cn(
-                                                    'flex h-7 min-w-[28px] items-center justify-center rounded-md px-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40',
+                                                    'flex h-7 min-w-[28px] items-center justify-center rounded-md px-1.5 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed',
                                                     l.active
                                                         ? 'bg-primary text-primary-foreground shadow-sm'
                                                         : 'border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -509,11 +426,7 @@ export default function PaymentsIndex({ payments, totals, filters }: Props) {
                                                 ) : isNext ? (
                                                     <ChevronRight className="h-3.5 w-3.5" />
                                                 ) : (
-                                                    <span
-                                                        dangerouslySetInnerHTML={{
-                                                            __html: l.label,
-                                                        }}
-                                                    />
+                                                    <span dangerouslySetInnerHTML={{ __html: l.label }} />
                                                 )}
                                             </button>
                                         );

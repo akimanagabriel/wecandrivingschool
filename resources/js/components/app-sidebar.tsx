@@ -5,6 +5,7 @@ import {
     CreditCard,
     HelpCircle,
     LayoutGrid,
+    Tag,
     Users,
 } from 'lucide-react';
 import { NavMain } from '@/components/nav-main';
@@ -31,6 +32,7 @@ const adminNavItems: NavItem[] = [
     { title: 'Questions', href: '/admin/questions', icon: HelpCircle },
     { title: 'Users', href: '/admin/users', icon: Users },
     { title: 'Payments', href: '/admin/payments', icon: CreditCard },
+    { title: 'Pricing Plans', href: '/admin/pricing-plans', icon: Tag },
 ];
 
 export function AppSidebar() {

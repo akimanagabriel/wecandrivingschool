@@ -145,3 +145,17 @@ export type AdminPaymentRow = {
     paid_at: string | null;
     expires_at: string | null;
 };
+
+export interface PricingPlan {
+    id: number;
+    name: string;
+    description: string;
+    amount: number;
+    currency: string;
+    duration_days: number;
+    duration_label: string;
+    features: string[];
+    badge_label: string | null;
+    is_featured: boolean;
+    is_active: boolean;
+}

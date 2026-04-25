@@ -1,5 +1,5 @@
+// resources/js/Pages/welcome.tsx
 import { Head, Link, usePage } from '@inertiajs/react';
-
 import {
     BookOpen,
     CheckCircle,
@@ -12,20 +12,22 @@ import {
     Star,
     Trophy,
     Users,
+    Car,
+    Zap,
+    Sparkles,
 } from 'lucide-react';
-
 import { dashboard, login, register } from '@/routes';
+import { PricingPlan } from '@/types/wecan';
 
-// ── Brand colours (from logo) ─────────────────────────────────────────────────
-// Primary  : #F5C518  (golden yellow)
-// Dark     : #1B2A4A  (deep navy)
-// Accent   : #FFFFFF  (white)
+interface WelcomeProps {
+    canRegister?: boolean;
+    plans?: PricingPlan[];
+}
 
 export default function Welcome({
     canRegister = true,
-}: {
-    canRegister?: boolean;
-}) {
+    plans = [],
+}: WelcomeProps) {
     const { auth } = usePage().props as { auth: { user?: unknown } };
 
     const stats = [
@@ -44,7 +46,7 @@ export default function Welcome({
         {
             icon: Clock,
             title: '20-Minute Timer',
-            desc: 'Mirrors real exam conditions with a server-enforced countdown no cheating possible.',
+            desc: 'Mirrors real exam conditions with a server-enforced countdown — no cheating possible.',
         },
         {
             icon: CheckCircle,
@@ -86,7 +88,7 @@ export default function Welcome({
 
     return (
         <>
-            <Head title="WeCanDrivingSchool Rwanda's #1 Driving Theory Platform">
+            <Head title="WeCanDrivingSchool — Rwanda's #1 Driving Theory Platform">
                 <link rel="preconnect" href="https://fonts.bunny.net" />
                 <link
                     href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600,700,800"
@@ -94,16 +96,12 @@ export default function Welcome({
                 />
                 <style>{`
                     :root {
-                        --gold: #F5C518;
-                        --gold-dark: #D4A800;
-                        --gold-light: #FEF3C7;
-                        --navy: #1B2A4A;
-                        --navy-dark: #0F1C35;
-                        --navy-light: #2D4270;
+                        --gold: #F5C518; --gold-dark: #D4A800;
+                        --gold-light: #FEF3C7; --navy: #1B2A4A;
+                        --navy-dark: #0F1C35; --navy-light: #2D4270;
                     }
                     body { font-family: 'Instrument Sans', sans-serif; }
                     .gold-gradient { background: linear-gradient(135deg, #F5C518 0%, #D4A800 100%); }
-                    .navy-gradient { background: linear-gradient(135deg, #1B2A4A 0%, #0F1C35 100%); }
                     .hero-gradient { background: linear-gradient(135deg, #1A0D00 0%, #7B3F00 40%, #472500 100%); }
                     .card-hover { transition: transform 0.2s, box-shadow 0.2s; }
                     .card-hover:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(27,42,74,0.15); }
@@ -111,14 +109,17 @@ export default function Welcome({
                     .float { animation: float 3s ease-in-out infinite; }
                     @keyframes pulse-gold { 0%,100%{box-shadow:0 0 0 0 rgba(245,197,24,0.4)} 50%{box-shadow:0 0 0 12px rgba(245,197,24,0)} }
                     .pulse-gold { animation: pulse-gold 2s infinite; }
+                    .plan-card { transition: transform 0.25s, box-shadow 0.25s; }
+                    .plan-card:hover { transform: translateY(-6px); }
+                    .plan-featured { box-shadow: 0 0 0 3px #F5C518, 0 24px 48px rgba(245,197,24,0.25); }
+                    .plan-featured:hover { box-shadow: 0 0 0 3px #D4A800, 0 32px 60px rgba(245,197,24,0.35); }
                 `}</style>
             </Head>
 
             <div className="min-h-screen bg-white text-[#1B2A4A]">
-                {/* ── NAV ────────────────────────────────────────────────────── */}
+                {/* ── NAV ── */}
                 <nav className="sticky top-0 z-50 border-b border-[#1B2A4A]/10 bg-white/95 backdrop-blur-sm">
                     <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
-                        {/* Logo */}
                         <div className="flex items-center gap-3">
                             <img
                                 src="/app-logo.jpeg"
@@ -139,36 +140,23 @@ export default function Welcome({
                                 </p>
                             </div>
                         </div>
-
-                        {/* Desktop nav links */}
                         <div className="hidden items-center gap-8 md:flex">
-                            <a
-                                href="#features"
-                                className="text-sm font-medium text-[#1B2A4A]/70 transition hover:text-[#1B2A4A]"
-                            >
-                                Features
-                            </a>
-                            <a
-                                href="#categories"
-                                className="text-sm font-medium text-[#1B2A4A]/70 transition hover:text-[#1B2A4A]"
-                            >
-                                Categories
-                            </a>
-                            <a
-                                href="#testimonials"
-                                className="text-sm font-medium text-[#1B2A4A]/70 transition hover:text-[#1B2A4A]"
-                            >
-                                Testimonials
-                            </a>
-                            <a
-                                href="#contact"
-                                className="text-sm font-medium text-[#1B2A4A]/70 transition hover:text-[#1B2A4A]"
-                            >
-                                Contact
-                            </a>
+                            {[
+                                'features',
+                                'pricing',
+                                'categories',
+                                'testimonials',
+                                'contact',
+                            ].map((id) => (
+                                <a
+                                    key={id}
+                                    href={`#${id}`}
+                                    className="text-sm font-medium text-[#1B2A4A]/70 capitalize transition hover:text-[#1B2A4A]"
+                                >
+                                    {id}
+                                </a>
+                            ))}
                         </div>
-
-                        {/* Auth buttons */}
                         <div className="flex items-center gap-3">
                             {auth?.user ? (
                                 <Link href={dashboard()}>
@@ -196,18 +184,14 @@ export default function Welcome({
                     </div>
                 </nav>
 
-                {/* ── HERO ───────────────────────────────────────────────────── */}
+                {/* ── HERO ── */}
                 <section className="hero-gradient relative overflow-hidden px-6 py-24 text-white lg:py-32">
-                    {/* Background decoration */}
                     <div className="pointer-events-none absolute inset-0 overflow-hidden">
                         <div className="absolute -top-24 -right-24 h-96 w-96 rounded-full bg-[#F5C518]/10 blur-3xl" />
                         <div className="absolute -bottom-24 -left-24 h-96 w-96 rounded-full bg-[#F5C518]/5 blur-3xl" />
-                        <div className="absolute top-1/2 left-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/5 blur-2xl" />
                     </div>
-
                     <div className="relative mx-auto max-w-7xl">
                         <div className="grid items-center gap-12 lg:grid-cols-2">
-                            {/* Left copy */}
                             <div>
                                 <h1 className="mb-6 text-4xl leading-tight font-extrabold lg:text-6xl">
                                     Pass Your
@@ -219,7 +203,7 @@ export default function Welcome({
                                 <p className="mb-8 text-lg text-white/70 lg:text-xl">
                                     WeCanDrivingSchool prepares you with 400+
                                     exam-style questions, 20-minute timed
-                                    quizzes, and instant answer explanations
+                                    quizzes, and instant answer explanations —
                                     everything you need to ace the Rwanda
                                     driving theory test.
                                 </p>
@@ -227,7 +211,7 @@ export default function Welcome({
                                     {canRegister && (
                                         <Link href={register()}>
                                             <button className="pulse-gold gold-gradient flex items-center gap-2 rounded-xl px-8 py-4 text-base font-bold text-[#1B2A4A] shadow-lg transition hover:opacity-90">
-                                                <Play className="h-5 w-5" />
+                                                <Play className="h-5 w-5" />{' '}
                                                 Start Practicing Free
                                             </button>
                                         </Link>
@@ -240,20 +224,16 @@ export default function Welcome({
                                 </div>
                                 <div className="mt-8 flex items-center gap-6 text-sm text-white/50">
                                     <span className="flex items-center gap-1.5">
-                                        <CheckCircle className="h-4 w-4 text-[#F5C518]" />
+                                        <CheckCircle className="h-4 w-4 text-[#F5C518]" />{' '}
                                         Free trial access available
                                     </span>
                                 </div>
                             </div>
-
-                            {/* Right logo + floating cards */}
                             <div className="relative flex items-center justify-center">
                                 <div className="float relative flex h-72 w-72 items-center justify-center lg:h-96 lg:w-96">
-                                    {/* Glow ring */}
                                     <div className="absolute inset-0 rounded-full bg-[#F5C518]/20 blur-2xl" />
                                     <div className="absolute inset-4 rounded-full border-2 border-[#F5C518]/20" />
                                     <div className="absolute inset-8 rounded-full border border-[#F5C518]/10" />
-                                    {/* Logo */}
                                     <img
                                         src="/app-logo.jpeg"
                                         alt="WeCanDrivingSchool"
@@ -267,13 +247,10 @@ export default function Welcome({
                                             );
                                         }}
                                     />
-                                    {/* Fallback steering wheel */}
                                     <div className="relative z-10 hidden h-52 w-52 items-center justify-center rounded-full bg-[#F5C518] shadow-2xl lg:h-64 lg:w-64">
                                         <span className="text-7xl">🚗</span>
                                     </div>
                                 </div>
-
-                                {/* Floating stat badges */}
                                 <div className="absolute top-8 -left-4 rounded-xl bg-white p-3 shadow-xl lg:-left-8">
                                     <div className="flex items-center gap-2">
                                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F5C518]">
@@ -324,7 +301,7 @@ export default function Welcome({
                     </div>
                 </section>
 
-                {/* ── STATS BAR ──────────────────────────────────────────────── */}
+                {/* ── STATS BAR ── */}
                 <section className="border-y border-[#1B2A4A]/10 bg-[#F5C518]">
                     <div className="mx-auto grid max-w-4xl grid-cols-2 gap-8 px-6 py-10 md:grid-cols-4">
                         {stats.map((s) => (
@@ -340,7 +317,7 @@ export default function Welcome({
                     </div>
                 </section>
 
-                {/* ── FEATURES ───────────────────────────────────────────────── */}
+                {/* ── FEATURES ── */}
                 <section id="features" className="px-6 py-20">
                     <div className="mx-auto max-w-7xl">
                         <div className="mb-14 text-center">
@@ -376,7 +353,7 @@ export default function Welcome({
                     </div>
                 </section>
 
-                {/* ── HOW IT WORKS ───────────────────────────────────────────── */}
+                {/* ── HOW IT WORKS ── */}
                 <section className="bg-[#F8FAFF] px-6 py-20">
                     <div className="mx-auto max-w-7xl">
                         <div className="mb-14 text-center">
@@ -397,14 +374,14 @@ export default function Welcome({
                                 },
                                 {
                                     step: '02',
-                                    title: 'Purchase access',
-                                    desc: 'Pay 5,000 RWF/month via MTN MoMo, Airtel Money, or card to unlock all quizzes.',
+                                    title: 'Choose your plan',
+                                    desc: 'Pick the plan that fits your schedule and pay via MTN MoMo or Airtel Money.',
                                     icon: '💳',
                                 },
                                 {
                                     step: '03',
                                     title: 'Practice & pass',
-                                    desc: 'Take unlimited 20-minute timed quizzes and review answers with explanations.',
+                                    desc: 'Take unlimited timed quizzes and review answers with explanations after each attempt.',
                                     icon: '🏆',
                                 },
                             ].map((item, i) => (
@@ -436,8 +413,259 @@ export default function Welcome({
                     </div>
                 </section>
 
-                {/* ── CATEGORIES ─────────────────────────────────────────────── */}
-                <section id="categories" className="px-6 py-20">
+                {/* ── PRICING ── */}
+                <section id="pricing" className="px-6 py-20">
+                    <div className="mx-auto max-w-7xl">
+                        <div className="mb-14 text-center">
+                            <span className="mb-3 inline-block rounded-full bg-[#FEF3C7] px-4 py-1.5 text-sm font-semibold text-[#D4A800]">
+                                Pricing Plans
+                            </span>
+                            <h2 className="text-3xl font-extrabold text-[#1B2A4A] lg:text-4xl">
+                                Choose your access plan
+                            </h2>
+                            <p className="mx-auto mt-4 max-w-xl text-lg text-[#1B2A4A]/60">
+                                Pay via MTN MoMo or Airtel Money. Every plan
+                                gives you full access to all quiz categories.
+                            </p>
+                        </div>
+
+                        {plans.length === 0 ? (
+                            /* Fallback if no plans loaded */
+                            <div className="mx-auto max-w-sm rounded-3xl border-2 border-[#F5C518] bg-white p-8 text-center shadow-2xl">
+                                <div className="mb-2 text-5xl font-extrabold text-[#1B2A4A]">
+                                    5,000
+                                </div>
+                                <div className="mb-6 text-lg font-medium text-[#1B2A4A]/50">
+                                    RWF / month
+                                </div>
+                                <ul className="mb-8 space-y-3 text-left text-sm">
+                                    {[
+                                        'Unlimited quiz attempts',
+                                        '400+ question bank',
+                                        'Instant results & explanations',
+                                        'Progress tracking dashboard',
+                                        'MTN MoMo & Airtel Money',
+                                    ].map((f) => (
+                                        <li
+                                            key={f}
+                                            className="flex items-center gap-2 text-[#1B2A4A]/80"
+                                        >
+                                            <CheckCircle className="h-4 w-4 shrink-0 text-[#F5C518]" />
+                                            {f}
+                                        </li>
+                                    ))}
+                                </ul>
+                                {canRegister ? (
+                                    <Link href={register()}>
+                                        <button className="gold-gradient w-full rounded-xl py-3.5 text-base font-bold text-[#1B2A4A] shadow-lg transition hover:opacity-90">
+                                            Get Started Today
+                                        </button>
+                                    </Link>
+                                ) : (
+                                    <Link href={login()}>
+                                        <button className="gold-gradient w-full rounded-xl py-3.5 text-base font-bold text-[#1B2A4A] shadow-lg transition hover:opacity-90">
+                                            Log In to Access
+                                        </button>
+                                    </Link>
+                                )}
+                            </div>
+                        ) : (
+                            <div
+                                className={[
+                                    'mx-auto grid gap-6',
+                                    plans.length === 1
+                                        ? 'max-w-sm'
+                                        : plans.length === 2
+                                          ? 'max-w-2xl grid-cols-1 sm:grid-cols-2'
+                                          : plans.length === 3
+                                            ? 'max-w-4xl grid-cols-1 sm:grid-cols-3'
+                                            : plans.length === 4
+                                              ? 'max-w-5xl grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+                                              : 'max-w-6xl grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+                                ].join(' ')}
+                            >
+                                {plans.map((plan) => {
+                                    const isPractical = plan.amount >= 100000;
+                                    const isHighEnd =
+                                        plan.amount >= 4000 && !isPractical;
+                                    return (
+                                        <div
+                                            key={plan.id}
+                                            className={[
+                                                'plan-card relative flex flex-col overflow-hidden rounded-3xl border-2 bg-white',
+                                                plan.is_featured
+                                                    ? 'plan-featured border-[#F5C518]'
+                                                    : isPractical
+                                                      ? 'border-[#1B2A4A]/30 shadow-lg'
+                                                      : 'border-[#1B2A4A]/10 shadow-sm',
+                                                isPractical && plans.length >= 3
+                                                    ? 'sm:col-span-2 lg:col-span-1'
+                                                    : '',
+                                            ].join(' ')}
+                                        >
+                                            {/* Top accent bar */}
+                                            <div
+                                                className={[
+                                                    'h-1.5 w-full',
+                                                    plan.is_featured
+                                                        ? 'bg-[#F5C518]'
+                                                        : isPractical
+                                                          ? 'bg-[#1B2A4A]'
+                                                          : isHighEnd
+                                                            ? 'bg-amber-400'
+                                                            : 'bg-[#1B2A4A]/20',
+                                                ].join(' ')}
+                                            />
+
+                                            {/* Badge */}
+                                            {plan.badge_label && (
+                                                <div className="absolute top-5 right-5">
+                                                    <span
+                                                        className={[
+                                                            'rounded-full px-3 py-1 text-[10px] font-extrabold tracking-wider uppercase',
+                                                            plan.is_featured
+                                                                ? 'bg-[#F5C518] text-[#1B2A4A]'
+                                                                : isPractical
+                                                                  ? 'bg-[#1B2A4A] text-white'
+                                                                  : 'bg-[#FEF3C7] text-[#D4A800]',
+                                                        ].join(' ')}
+                                                    >
+                                                        {plan.badge_label}
+                                                    </span>
+                                                </div>
+                                            )}
+
+                                            <div className="flex flex-1 flex-col p-7">
+                                                {/* Plan icon */}
+                                                <div
+                                                    className={[
+                                                        'mb-4 flex h-11 w-11 items-center justify-center rounded-xl text-xl',
+                                                        plan.is_featured
+                                                            ? 'bg-[#FEF3C7]'
+                                                            : isPractical
+                                                              ? 'bg-[#1B2A4A]/10'
+                                                              : 'bg-[#F8FAFF]',
+                                                    ].join(' ')}
+                                                >
+                                                    {isPractical ? (
+                                                        <Car className="h-5 w-5 text-[#1B2A4A]" />
+                                                    ) : isHighEnd ? (
+                                                        <Star className="h-5 w-5 text-amber-500" />
+                                                    ) : plan.amount >= 2500 ? (
+                                                        <Zap className="h-5 w-5 text-blue-500" />
+                                                    ) : (
+                                                        <Sparkles className="h-5 w-5 text-[#D4A800]" />
+                                                    )}
+                                                </div>
+
+                                                {/* Name + description */}
+                                                <h3 className="mb-1 pr-20 text-lg leading-tight font-extrabold text-[#1B2A4A]">
+                                                    {plan.name}
+                                                </h3>
+                                                {plan.description && (
+                                                    <p className="mb-5 text-sm leading-relaxed text-[#1B2A4A]/55">
+                                                        {plan.description}
+                                                    </p>
+                                                )}
+
+                                                {/* Price */}
+                                                <div className="mb-6">
+                                                    <div className="flex items-baseline gap-1">
+                                                        <span className="text-4xl font-extrabold text-[#1B2A4A] tabular-nums">
+                                                            {Number(
+                                                                plan.amount,
+                                                            ).toLocaleString()}
+                                                        </span>
+                                                        <span className="text-base font-semibold text-[#1B2A4A]/50">
+                                                            {plan.currency}
+                                                        </span>
+                                                    </div>
+                                                    <p className="mt-0.5 text-sm text-[#1B2A4A]/40">
+                                                        {plan.duration_label}{' '}
+                                                        access
+                                                    </p>
+                                                </div>
+
+                                                {/* Features */}
+                                                {plan.features &&
+                                                    plan.features.length >
+                                                        0 && (
+                                                        <ul className="mb-8 flex-1 space-y-2.5">
+                                                            {plan.features.map(
+                                                                (f) => (
+                                                                    <li
+                                                                        key={f}
+                                                                        className="flex items-start gap-2.5 text-sm text-[#1B2A4A]/75"
+                                                                    >
+                                                                        <CheckCircle
+                                                                            className={[
+                                                                                'mt-0.5 h-4 w-4 shrink-0',
+                                                                                plan.is_featured
+                                                                                    ? 'text-[#D4A800]'
+                                                                                    : isPractical
+                                                                                      ? 'text-[#1B2A4A]'
+                                                                                      : 'text-emerald-500',
+                                                                            ].join(
+                                                                                ' ',
+                                                                            )}
+                                                                        />
+                                                                        {f}
+                                                                    </li>
+                                                                ),
+                                                            )}
+                                                        </ul>
+                                                    )}
+
+                                                {/* CTA */}
+                                                <div className="mt-auto">
+                                                    {canRegister ? (
+                                                        <Link href={register()}>
+                                                            <button
+                                                                className={[
+                                                                    'w-full rounded-xl py-3.5 text-sm font-bold transition',
+                                                                    plan.is_featured
+                                                                        ? 'gold-gradient text-[#1B2A4A] shadow-lg hover:opacity-90'
+                                                                        : isPractical
+                                                                          ? 'bg-[#1B2A4A] text-white hover:bg-[#2D4270]'
+                                                                          : 'border-2 border-[#1B2A4A]/20 text-[#1B2A4A] hover:border-[#1B2A4A]/50 hover:bg-[#1B2A4A]/5',
+                                                                ].join(' ')}
+                                                            >
+                                                                {isPractical
+                                                                    ? 'Book Practical Lessons'
+                                                                    : 'Get Started'}
+                                                            </button>
+                                                        </Link>
+                                                    ) : (
+                                                        <Link href={login()}>
+                                                            <button
+                                                                className={[
+                                                                    'w-full rounded-xl py-3.5 text-sm font-bold transition',
+                                                                    plan.is_featured
+                                                                        ? 'gold-gradient text-[#1B2A4A] shadow-lg hover:opacity-90'
+                                                                        : 'border-2 border-[#1B2A4A]/20 text-[#1B2A4A] hover:border-[#1B2A4A]/50',
+                                                                ].join(' ')}
+                                                            >
+                                                                Log In to Access
+                                                            </button>
+                                                        </Link>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        <p className="mt-8 text-center text-sm text-[#1B2A4A]/40">
+                            Pay via MTN Mobile Money · Airtel Money · Secure &
+                            encrypted
+                        </p>
+                    </div>
+                </section>
+
+                {/* ── CATEGORIES ── */}
+                <section id="categories" className="bg-[#F8FAFF] px-6 py-20">
                     <div className="mx-auto max-w-7xl">
                         <div className="mb-14 text-center">
                             <span className="mb-3 inline-block rounded-full bg-[#FEF3C7] px-4 py-1.5 text-sm font-semibold text-[#D4A800]">
@@ -470,7 +698,7 @@ export default function Welcome({
                     </div>
                 </section>
 
-                {/* ── TESTIMONIALS ───────────────────────────────────────────── */}
+                {/* ── TESTIMONIALS ── */}
                 <section
                     id="testimonials"
                     className="hero-gradient px-6 py-20 text-white"
@@ -517,61 +745,7 @@ export default function Welcome({
                     </div>
                 </section>
 
-                {/* ── PRICING CTA ────────────────────────────────────────────── */}
-                <section className="px-6 py-20">
-                    <div className="mx-auto max-w-2xl text-center">
-                        <span className="mb-3 inline-block rounded-full bg-[#FEF3C7] px-4 py-1.5 text-sm font-semibold text-[#D4A800]">
-                            Simple Pricing
-                        </span>
-                        <h2 className="mb-4 text-3xl font-extrabold text-[#1B2A4A] lg:text-4xl">
-                            One price, everything included
-                        </h2>
-                        <div className="mx-auto mt-8 max-w-sm rounded-3xl border-2 border-[#F5C518] bg-white p-8 shadow-2xl">
-                            <div className="mb-2 text-5xl font-extrabold text-[#1B2A4A]">
-                                5,000
-                            </div>
-                            <div className="mb-6 text-lg font-medium text-[#1B2A4A]/50">
-                                RWF / month
-                            </div>
-                            <ul className="mb-8 space-y-3 text-left text-sm">
-                                {[
-                                    'Unlimited quiz attempts',
-                                    '400+ question bank',
-                                    'Instant results & explanations',
-                                    'Progress tracking dashboard',
-                                    'MTN MoMo & Airtel Money payment',
-                                    'Accessible on mobile & desktop',
-                                ].map((f) => (
-                                    <li
-                                        key={f}
-                                        className="flex items-center gap-2 text-[#1B2A4A]/80"
-                                    >
-                                        <CheckCircle className="h-4 w-4 shrink-0 text-[#F5C518]" />
-                                        {f}
-                                    </li>
-                                ))}
-                            </ul>
-                            {canRegister ? (
-                                <Link href={register()}>
-                                    <button className="gold-gradient w-full rounded-xl py-3.5 text-base font-bold text-[#1B2A4A] shadow-lg transition hover:opacity-90">
-                                        Get Started Today
-                                    </button>
-                                </Link>
-                            ) : (
-                                <Link href={login()}>
-                                    <button className="gold-gradient w-full rounded-xl py-3.5 text-base font-bold text-[#1B2A4A] shadow-lg transition hover:opacity-90">
-                                        Log In to Access
-                                    </button>
-                                </Link>
-                            )}
-                            <p className="mt-3 text-xs text-[#1B2A4A]/40">
-                                Pay via MTN MoMo, Airtel Money, or Card
-                            </p>
-                        </div>
-                    </div>
-                </section>
-
-                {/* ── CONTACT ────────────────────────────────────────────────── */}
+                {/* ── CONTACT ── */}
                 <section
                     id="contact"
                     className="bg-[#1B2A4A] px-6 py-16 text-white"
@@ -632,7 +806,6 @@ export default function Welcome({
                                     </div>
                                 </div>
                             </div>
-
                             <div className="flex flex-col justify-center rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
                                 <h3 className="mb-2 text-xl font-bold">
                                     Ready to get your licence?
@@ -653,9 +826,9 @@ export default function Welcome({
                     </div>
                 </section>
 
-                {/* ── FOOTER ─────────────────────────────────────────────────── */}
+                {/* ── FOOTER ── */}
                 <footer className="border-t border-white/10 bg-[#0F1C35] px-6 py-6 text-center text-xs text-white/30">
-                    © {new Date().getFullYear()} WeCanDrivingSchool Kigali,
+                    © {new Date().getFullYear()} WeCanDrivingSchool — Kigali,
                     Rwanda. All rights reserved.
                 </footer>
             </div>
