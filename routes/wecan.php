@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin;
+use App\Http\Controllers\Admin\PricingPlanController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\QuizController;
 use App\Http\Controllers\StudentDashboardController;
@@ -24,6 +25,9 @@ Route::middleware(['auth', 'verified', 'role:student|admin'])->group(function ()
     Route::post('quiz/{attempt}/answer', [QuizController::class, 'saveAnswer'])->name('quiz.answer')->middleware('paid.access');
     Route::post('quiz/{attempt}/submit', [QuizController::class, 'submit'])->name('quiz.submit')->middleware('paid.access');
     Route::get('quiz/{attempt}/results', [QuizController::class, 'results'])->name('quiz.results')->middleware('paid.access');
+
+    // public shareable link
+
 });
 
 
@@ -51,6 +55,9 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     // Payments
     Route::get('payments', [Admin\PaymentController::class, 'index'])->name('payments.index');
     Route::post('payments/{payment}/refund', [Admin\PaymentController::class, 'refund'])->name('payments.refund');
+
+    // pricing plans
+    Route::get("/pricing-plans", [PricingPlanController::class, "index"]);
 });
 
 

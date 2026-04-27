@@ -11,8 +11,6 @@ Route::get('/', [WelcomeController::class, 'index'])->name('home');
 Route::middleware(['auth', 'verified'])->group(function () {
     // Default dashboard redirects based on role
     Route::get('dashboard', function () {
-
-        /** @var \App\Models\User $user */
         $user = Auth::user();
         if ($user && $user->hasRole('admin')) {
             return redirect()->route('admin.dashboard');
@@ -23,3 +21,4 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 require __DIR__ . '/settings.php';
 require __DIR__ . '/wecan.php';
+require __DIR__ . '/link_access.php';

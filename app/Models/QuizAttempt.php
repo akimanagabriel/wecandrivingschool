@@ -24,14 +24,22 @@ class QuizAttempt extends Model
         'question_ids',
     ];
 
-    protected $casts = [
-        'started_at'   => 'datetime',
-        'ended_at'     => 'datetime',
-        'expires_at'   => 'datetime',
-        'is_submitted' => 'boolean',
-        'is_timed_out' => 'boolean',
-        'question_ids' => 'array',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'started_at' => 'datetime',
+            'ended_at' => 'datetime',
+            'expires_at' => 'datetime',
+            'is_submitted' => 'boolean',
+            'is_timed_out' => 'boolean',
+            'question_ids' => 'array',
+            'duration_minutes' => 'integer', // Force cast to integer
+            'total_questions' => 'integer',
+            'score' => 'integer',
+            'correct_answers' => 'integer',
+            'incorrect_answers' => 'integer',
+        ];
+    }
 
     public function user()
     {
@@ -46,7 +54,7 @@ class QuizAttempt extends Model
     public function questions()
     {
         return $this->belongsToMany(Question::class, 'answers', 'quiz_attempt_id', 'question_id')
-                    ->withPivot(['selected_option_id', 'is_correct']);
+            ->withPivot(['selected_option_id', 'is_correct']);
     }
 
     public function isExpired(): bool
