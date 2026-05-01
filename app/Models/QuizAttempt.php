@@ -22,6 +22,8 @@ class QuizAttempt extends Model
         'is_submitted',
         'is_timed_out',
         'question_ids',
+        'is_guest_attempt',
+        'guest_session_id',
     ];
 
     protected function casts(): array
@@ -32,8 +34,9 @@ class QuizAttempt extends Model
             'expires_at' => 'datetime',
             'is_submitted' => 'boolean',
             'is_timed_out' => 'boolean',
+            'is_guest_attempt' => 'boolean',
             'question_ids' => 'array',
-            'duration_minutes' => 'integer', // Force cast to integer
+            'duration_minutes' => 'integer',
             'total_questions' => 'integer',
             'score' => 'integer',
             'correct_answers' => 'integer',

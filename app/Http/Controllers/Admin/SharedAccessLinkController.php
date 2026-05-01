@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\SharedAccessLink;
+use App\Models\SharedAccessSession;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -72,10 +74,9 @@ class SharedAccessLinkController extends Controller
         return back()->with('success', 'Access link updated successfully.');
     }
 
-    public function destroy(SharedAccessLink $sharedAccessLink)
+    public function destroy($id)
     {
-        $sharedAccessLink->delete();
-
+        SharedAccessLink::destroy($id);
         return back()->with('success', 'Access link deleted successfully.');
     }
 
@@ -93,18 +94,29 @@ class SharedAccessLinkController extends Controller
         return back()->with('success', 'New link generated: ' . $sharedAccessLink->getFullUrl());
     }
 
+
     public function stats(SharedAccessLink $sharedAccessLink)
     {
         $sessions = $sharedAccessLink->sessions()
             ->with('quizAttempt')
-            ->latest()
+            ->latest('accessed_at')
             ->get()
             ->map(fn($session) => [
-                'accessed_at' => $session->accessed_at,
+                'accessed_at' => $session->accessed_at?->toIso8601String(),
                 'ip_address' => $session->ip_address,
                 'score' => $session->quizAttempt?->score,
                 'is_passed' => $session->quizAttempt?->isPassed(),
             ]);
+
+        Log::info('Retrieved sessions for link ' . $sharedAccessLink->id, ['count' => $sessions->count()]);
+
+        $totalAttempts = $sessions->whereNotNull('score')->count();
+        $averageScore = $totalAttempts > 0
+            ? round($sessions->whereNotNull('score')->avg('score'), 1)
+            : 0;
+        $passRate = $totalAttempts > 0
+            ? round(($sessions->where('is_passed', true)->count() / $totalAttempts) * 100, 1)
+            : 0;
 
         return Inertia::render('admin/shared-links/stats', [
             'link' => [
@@ -116,13 +128,12 @@ class SharedAccessLinkController extends Controller
                 'remaining_uses' => $sharedAccessLink->getRemainingUses(),
                 'expires_at' => $sharedAccessLink->expires_at,
                 'url' => $sharedAccessLink->getFullUrl(),
+                'created_at' => $sharedAccessLink->created_at,
             ],
             'sessions' => $sessions,
-            'total_attempts' => $sessions->whereNotNull('score')->count(),
-            'average_score' => $sessions->whereNotNull('score')->avg('score'),
-            'pass_rate' => $sessions->where('is_passed', true)->count() > 0
-                ? round($sessions->where('is_passed', true)->count() / max(1, $sessions->whereNotNull('score')->count()) * 100, 1)
-                : 0,
+            'total_attempts' => $totalAttempts,
+            'average_score' => $averageScore,
+            'pass_rate' => $passRate,
         ]);
     }
 }

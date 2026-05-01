@@ -28,6 +28,7 @@ Route::middleware(['auth', 'verified', 'role:student|admin'])->group(function ()
 
     // public shareable link
 
+
 });
 
 
@@ -57,7 +58,11 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     Route::post('payments/{payment}/refund', [Admin\PaymentController::class, 'refund'])->name('payments.refund');
 
     // pricing plans
-    Route::get("/pricing-plans", [PricingPlanController::class, "index"]);
+    Route::get('/pricing-plans', [PricingPlanController::class, 'index'])->name('pricing-plans.index');
+    Route::post('/pricing-plans', [PricingPlanController::class, 'store'])->name('pricing-plans.store');
+    Route::put('/pricing-plans/{pricingPlan}', [PricingPlanController::class, 'update'])->name('pricing-plans.update');
+    Route::delete('/pricing-plans/{pricingPlan}', [PricingPlanController::class, 'destroy'])->name('pricing-plans.destroy');
+    Route::post('/pricing-plans/{pricingPlan}/toggle', [PricingPlanController::class, 'toggleActive'])->name('pricing-plans.toggle');
 });
 
 

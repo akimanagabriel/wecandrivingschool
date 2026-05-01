@@ -1,6 +1,5 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @stylistic/padding-line-between-statements */
-
+// resources/js/pages/admin/shared-links/stats.tsx
+import { useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import {
     ArrowLeft,
@@ -10,23 +9,14 @@ import {
     Users,
     Calendar,
     TrendingUp,
-    Clock,
     MapPin,
     Award,
+    Eye,
+    Clock,
 } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
-import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem } from '@/types';
 import {
     Table,
     TableBody,
@@ -35,6 +25,15 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+import AppLayout from '@/layouts/app-layout';
+import type { BreadcrumbItem } from '@/types';
+import { toast } from 'sonner';
 
 interface Session {
     accessed_at: string;
@@ -45,6 +44,7 @@ interface Session {
 
 interface Props {
     link: {
+        created_at: string | number | Date;
         id: number;
         name: string;
         token: string;
@@ -83,13 +83,21 @@ export default function SharedLinksStats({
     };
 
     const getScoreColor = (score: number | null) => {
-        if (!score) {
-            return 'text-gray-400';
-        }
-        if (score >= 70) {
-            return 'text-green-600';
-        }
+        if (!score) return 'text-gray-400';
+        if (score >= 70) return 'text-green-600';
         return 'text-red-600';
+    };
+
+    const getScoreBadge = (score: number | null) => {
+        if (!score) return null;
+        if (score >= 70) {
+            return (
+                <Badge variant="default" className="bg-green-500">
+                    Passed
+                </Badge>
+            );
+        }
+        return <Badge variant="destructive">Failed</Badge>;
     };
 
     return (
@@ -97,20 +105,43 @@ export default function SharedLinksStats({
             <Head title={`Link Statistics - ${link.name}`} />
             <div className="flex flex-col gap-6 p-4 md:p-6">
                 {/* Header with back button */}
-                <div className="flex items-center gap-4">
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => router.get('/admin/shared-links')}
-                    >
-                        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Links
-                    </Button>
-                    <div>
-                        <h1 className="text-2xl font-bold">Link Statistics</h1>
-                        <p className="text-muted-foreground">
-                            Performance overview for "{link.name}"
-                        </p>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => router.get('/admin/shared-links')}
+                        >
+                            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Links
+                        </Button>
+                        <div>
+                            <h1 className="text-2xl font-bold">
+                                Link Statistics
+                            </h1>
+                            <p className="text-muted-foreground">
+                                Performance overview for "{link.name}"
+                            </p>
+                        </div>
                     </div>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        window.open(link.url, '_blank')
+                                    }
+                                >
+                                    <Eye className="mr-2 h-4 w-4" /> Preview
+                                    Link
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                Open shared link in new tab
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                 </div>
 
                 {/* Link Info Card */}
@@ -121,7 +152,23 @@ export default function SharedLinksStats({
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                        <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                            <div>
+                                <div className="text-sm font-medium text-muted-foreground">
+                                    Name
+                                </div>
+                                <div className="mt-1 font-medium">
+                                    {link.name}
+                                </div>
+                            </div>
+                            <div>
+                                <div className="text-sm font-medium text-muted-foreground">
+                                    Token
+                                </div>
+                                <code className="mt-1 block rounded bg-muted px-2 py-1 text-xs">
+                                    {link.token}
+                                </code>
+                            </div>
                             <div>
                                 <div className="text-sm font-medium text-muted-foreground">
                                     URL
@@ -145,36 +192,6 @@ export default function SharedLinksStats({
                             </div>
                             <div>
                                 <div className="text-sm font-medium text-muted-foreground">
-                                    Token
-                                </div>
-                                <code className="mt-1 block rounded bg-muted px-2 py-1 text-xs">
-                                    {link.token}
-                                </code>
-                            </div>
-                            <div>
-                                <div className="text-sm font-medium text-muted-foreground">
-                                    Usage
-                                </div>
-                                <div className="mt-1">
-                                    <span className="font-medium">
-                                        {link.used_count}
-                                    </span>{' '}
-                                    / {link.max_uses}
-                                    <div className="mt-1 h-2 w-full rounded-full bg-muted">
-                                        <div
-                                            className="h-2 rounded-full bg-primary transition-all"
-                                            style={{
-                                                width: `${(link.used_count / link.max_uses) * 100}%`,
-                                            }}
-                                        />
-                                    </div>
-                                    <div className="mt-1 text-xs text-muted-foreground">
-                                        {link.remaining_uses} remaining uses
-                                    </div>
-                                </div>
-                            </div>
-                            <div>
-                                <div className="text-sm font-medium text-muted-foreground">
                                     Expiration
                                 </div>
                                 <div className="mt-1 flex items-center gap-2">
@@ -185,6 +202,46 @@ export default function SharedLinksStats({
                                                   link.expires_at,
                                               ).toLocaleString()
                                             : 'Never expires'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <div>
+                                <div className="text-sm font-medium text-muted-foreground">
+                                    Usage Statistics
+                                </div>
+                                <div className="mt-2">
+                                    <div className="mb-1 flex justify-between text-sm">
+                                        <span>
+                                            Used: {link.used_count} /{' '}
+                                            {link.max_uses}
+                                        </span>
+                                        <span className="text-muted-foreground">
+                                            {link.remaining_uses} remaining
+                                        </span>
+                                    </div>
+                                    <div className="h-2 w-full rounded-full bg-muted">
+                                        <div
+                                            className="h-2 rounded-full bg-primary transition-all"
+                                            style={{
+                                                width: `${(link.used_count / link.max_uses) * 100}%`,
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <div className="text-sm font-medium text-muted-foreground">
+                                    Created
+                                </div>
+                                <div className="mt-1 flex items-center gap-2">
+                                    <Clock className="h-4 w-4 text-muted-foreground" />
+                                    <span>
+                                        {new Date(
+                                            link.created_at,
+                                        ).toLocaleString()}
                                     </span>
                                 </div>
                             </div>
@@ -241,7 +298,7 @@ export default function SharedLinksStats({
                             </div>
                             <p className="text-xs text-muted-foreground">
                                 {Math.round((pass_rate / 100) * total_attempts)}{' '}
-                                students passed
+                                out of {total_attempts} passed
                             </p>
                         </CardContent>
                     </Card>
@@ -253,6 +310,9 @@ export default function SharedLinksStats({
                         <CardTitle className="text-base">
                             Access Sessions
                         </CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                            Detailed log of all access attempts and quiz results
+                        </p>
                     </CardHeader>
                     <CardContent className="p-0">
                         <Table>
@@ -265,7 +325,7 @@ export default function SharedLinksStats({
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {sessions.length === 0 ? (
+                                {sessions.length == 0 ? (
                                     <TableRow>
                                         <TableCell
                                             colSpan={4}
@@ -291,7 +351,8 @@ export default function SharedLinksStats({
                                                 <div className="flex items-center gap-2">
                                                     <MapPin className="h-3 w-3 text-muted-foreground" />
                                                     <code className="text-xs">
-                                                        {session.ip_address}
+                                                        {session.ip_address ||
+                                                            'Unknown'}
                                                     </code>
                                                 </div>
                                             </TableCell>
@@ -310,20 +371,9 @@ export default function SharedLinksStats({
                                             </TableCell>
                                             <TableCell>
                                                 {session.score !== null &&
-                                                    (session.is_passed ? (
-                                                        <Badge
-                                                            variant="default"
-                                                            className="bg-green-500"
-                                                        >
-                                                            <CheckCircle className="mr-1 h-3 w-3" />{' '}
-                                                            Passed
-                                                        </Badge>
-                                                    ) : (
-                                                        <Badge variant="destructive">
-                                                            <XCircle className="mr-1 h-3 w-3" />{' '}
-                                                            Failed
-                                                        </Badge>
-                                                    ))}
+                                                    getScoreBadge(
+                                                        session.score,
+                                                    )}
                                             </TableCell>
                                         </TableRow>
                                     ))
