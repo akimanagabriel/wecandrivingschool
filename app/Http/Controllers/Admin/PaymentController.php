@@ -12,6 +12,8 @@ use Inertia\Response;
 
 use App\Services\PaypackService;
 
+use Barryvdh\DomPDF\Facade\Pdf;
+
 class PaymentController extends Controller
 {
     public function index(Request $request): Response
@@ -71,6 +73,46 @@ class PaymentController extends Controller
         return back()->with('success', 'Payment refunded.');
     }
 
+
+    public function report(Request $request)
+    {
+        $query = Payment::with('user')
+            ->when($request->status, fn($q) => $q->where('status', $request->status))
+            ->when($request->input("method"), fn($q) => $q->where('payment_method', $request->input("method")))
+            ->when($request->search, fn($q) => $q->whereHas('user', fn($u) =>
+                $u->where('name', 'like', "%{$request->search}%")
+                    ->orWhere('email', 'like', "%{$request->search}%")))
+            ->latest();
+
+        // For PDF, get all records without pagination
+        $payments = $query->get()->map(fn($p) => [
+            'id' => $p->id,
+            'user_name' => $p->user->name,
+            'user_email' => $p->user->email,
+            'plan_name' => $p->metadata['plan_name'] ?? 'Unknown plan',
+            'amount' => $p->amount,
+            'currency' => $p->currency,
+            'payment_method' => $p->payment_method,
+            'status' => $p->status,
+            'transaction_id' => $p->transaction_id,
+            'paid_at' => $p->paid_at,
+            'expires_at' => $p->access_expires_at,
+        ]);
+
+        $totals = [
+            'completed' => (clone $query)->where('status', 'completed')->sum('amount'),
+            'failed' => (clone $query)->where('status', 'failed')->sum('amount'),
+        ];
+
+
+        $pdf = Pdf::loadView('admin.payments-report', [
+            'payments' => $payments,
+            'totals' => $totals,
+            'filters' => $request->only(['search', 'status', 'method']),
+        ]);
+
+        return $pdf->stream('payments-report-' . now()->format('Y-m-d') . '.pdf');
+    }
 
 
 

@@ -56,6 +56,8 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     // Payments
     Route::get('payments', [Admin\PaymentController::class, 'index'])->name('payments.index');
     Route::post('payments/{payment}/refund', [Admin\PaymentController::class, 'refund'])->name('payments.refund');
+    // payment report with filters
+    Route::get('payments/report', [Admin\PaymentController::class, 'report'])->name('payments.report');
 
     // pricing plans
     Route::get('/pricing-plans', [PricingPlanController::class, 'index'])->name('pricing-plans.index');
