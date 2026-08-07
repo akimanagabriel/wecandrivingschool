@@ -311,7 +311,6 @@ export default function PublicQuiz({
                             <Button
                                 onClick={handleSubmit}
                                 disabled={isSubmitting || timeUp}
-                                className="gold-gradient font-bold text-[#1B2A4A]"
                             >
                                 {isSubmitting
                                     ? 'Submitting...'
