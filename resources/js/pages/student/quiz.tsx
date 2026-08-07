@@ -1,20 +1,62 @@
 import { useCallback, useEffect, useRef, useState, memo } from 'react';
 import { Head, router } from '@inertiajs/react';
-import { AlertTriangle, CheckSquare, ChevronLeft, ChevronRight, Clock, LayoutGrid, X } from 'lucide-react';
+import { toast } from 'sonner';
+import {
+    AlertTriangle,
+    CheckSquare,
+    ChevronLeft,
+    ChevronRight,
+    Clock,
+    LayoutGrid,
+    X,
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import type { QuizAttemptMeta, QuizQuestion, WeCanPageProps } from '@/types/wecan';
 
-type Props = WeCanPageProps<{
-    attempt: QuizAttemptMeta;
-    questions: QuizQuestion[];
+interface Question {
+    id: number;
+    question_text: string;
+    image_path: string | null;
+    category: string;
+    options: Array<{
+        id: number;
+        option_text: string;
+        image_path: string | null;
+    }>;
+}
+
+interface Props {
+    attempt: {
+        id: number;
+        remainingSeconds: number;
+        totalQuestions: number;
+    };
+    questions: Question[];
     savedAnswers: Record<number, number>;
-}>;
+}
+
+// ── Helper function to get correct image URL ──────────────────────────────
+const getImageUrl = (path: string | null): string | null => {
+    if (!path) return null;
+    
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+        return path;
+    }
+    
+    if (path.startsWith('storage/')) {
+        return '/' + path;
+    }
+    
+    if (path.startsWith('/')) {
+        return path;
+    }
+    
+    return '/storage/' + path;
+};
 
 // ── Isolated Countdown Timer ───────────────────────────────────────────────
-// Extracts the 1s tick from the main Quiz component to prevent 60 FPS full-page re-renders.
 const CountdownTimer = memo(({ initialSeconds, onExpire }: { initialSeconds: number; onExpire: () => void }) => {
     const [timeLeft, setTimeLeft] = useState(initialSeconds);
     const hasExpired = useRef(false);
@@ -59,7 +101,6 @@ export default function Quiz({ attempt, questions, savedAnswers }: Props) {
     const [showMobileGrid, setShowMobileGrid] = useState(false);
     const debounce                        = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
-    // ── Save answer via fetch ──────────────────────────────────────────────────
     const saveAnswer = useCallback((qid: number, oid: number) => {
         clearTimeout(debounce.current[qid]);
         debounce.current[qid] = setTimeout(() => {
@@ -68,7 +109,7 @@ export default function Quiz({ attempt, questions, savedAnswers }: Props) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf },
                 body: JSON.stringify({ question_id: qid, option_id: oid }),
-            }).catch(() => {/* silently fail – captured on submit */});
+            }).catch(() => {});
         }, 400);
     }, [attempt.id]);
 
@@ -77,7 +118,6 @@ export default function Quiz({ attempt, questions, savedAnswers }: Props) {
         saveAnswer(qid, oid);
     }, [saveAnswer]);
 
-    // ── Submit ─────────────────────────────────────────────────────────────────
     const handleSubmit = useCallback(() => {
         setSubmitting(true);
         router.post(`/quiz/${attempt.id}/submit`, { answers }, {
@@ -90,10 +130,9 @@ export default function Quiz({ attempt, questions, savedAnswers }: Props) {
         router.post(`/quiz/${attempt.id}/submit`, { answers });
     }, [attempt.id, answers]);
 
-    // ── Keyboard Navigation ────────────────────────────────────────────────────
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (showConfirm || showMobileGrid) return; // Disable when modals are open
+            if (showConfirm || showMobileGrid) return;
             
             if (e.key === 'ArrowLeft') {
                 setCurrentIndex((i) => Math.max(0, i - 1));
@@ -105,8 +144,6 @@ export default function Quiz({ attempt, questions, savedAnswers }: Props) {
                 const targetOption = questions[currentIndex]?.options[optIndex];
                 if (targetOption) {
                     selectAnswer(questions[currentIndex].id, targetOption.id);
-                    // Add slight delay before auto-advancing, or just let user navigate manually.
-                    // We let them navigate manually to avoid disorientation.
                 }
             }
         };
@@ -114,14 +151,11 @@ export default function Quiz({ attempt, questions, savedAnswers }: Props) {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [currentIndex, questions, showConfirm, showMobileGrid, selectAnswer, attempt.totalQuestions]);
 
-
-    // ── Render ─────────────────────────────────────────────────────────────────
     const current   = questions[currentIndex];
     const answered  = Object.keys(answers).length;
     const progress  = Math.round((answered / attempt.totalQuestions) * 100);
     const labels    = ['A', 'B', 'C', 'D', 'E', 'F'];
 
-    // Common grid renderer used by both desktop sidebar and mobile drawer
     const renderGrid = () => (
         <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-6 lg:grid-cols-5">
             {questions.map((q, i) => {
@@ -144,11 +178,18 @@ export default function Quiz({ attempt, questions, savedAnswers }: Props) {
         </div>
     );
 
+    if (!current) return (
+        <div className="flex min-h-screen items-center justify-center">
+            <p className="text-muted-foreground">Loading…</p>
+        </div>
+    );
+
+    const questionImageUrl = getImageUrl(current.image_path);
+
     return (
         <>
             <Head title="Quiz Question" />
             <div className="flex min-h-screen flex-col bg-background md:bg-muted/20">
-                {/* Header */}
                 <header className="sticky top-0 z-40 border-b bg-background/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/60">
                     <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
                         <div className="flex items-center gap-3">
@@ -172,7 +213,6 @@ export default function Quiz({ attempt, questions, savedAnswers }: Props) {
                             {submitting ? 'Submitting…' : 'Submit Quiz'}
                         </Button>
 
-                        {/* Mobile Grid Toggle */}
                         <Button
                             variant="outline"
                             size="icon"
@@ -182,7 +222,6 @@ export default function Quiz({ attempt, questions, savedAnswers }: Props) {
                             <LayoutGrid className="h-5 w-5" />
                         </Button>
                     </div>
-                    {/* Progress bar */}
                     <div className="h-1 w-full bg-muted/50">
                         <div
                             className="h-1 bg-primary/80 transition-all duration-500 ease-out"
@@ -192,7 +231,6 @@ export default function Quiz({ attempt, questions, savedAnswers }: Props) {
                 </header>
 
                 <main className="mx-auto flex w-full max-w-5xl flex-1 gap-6 px-4 py-6 md:py-8 lg:flex-row pb-24 md:pb-8">
-                    {/* Main Question Card */}
                     <div className="flex-1 animate-in fade-in slide-in-from-bottom-2 duration-300">
                         <Card className="border-muted shadow-sm md:shadow-md">
                             <CardContent className="p-5 md:p-8">
@@ -207,12 +245,15 @@ export default function Quiz({ attempt, questions, savedAnswers }: Props) {
                                     {current.question_text}
                                 </h2>
 
-                                {current.image_path && (
+                                {questionImageUrl && (
                                     <div className="mb-6 flex justify-center">
                                         <img
-                                            src={`/storage/${current.image_path}`}
+                                            src={questionImageUrl}
                                             alt="Question illustration"
                                             className="max-h-64 w-auto rounded-xl border border-muted object-contain shadow-sm"
+                                            onError={(e) => {
+                                                (e.target as HTMLImageElement).style.display = 'none';
+                                            }}
                                         />
                                     </div>
                                 )}
@@ -220,6 +261,10 @@ export default function Quiz({ attempt, questions, savedAnswers }: Props) {
                                 <div className="space-y-3">
                                     {current.options.map((opt, i) => {
                                         const selected = answers[current.id] === opt.id;
+                                        const optionImageUrl = getImageUrl(opt.image_path);
+                                        const hasText = opt.option_text?.trim()?.length > 0;
+                                        const hasImage = !!optionImageUrl;
+
                                         return (
                                             <button
                                                 key={opt.id}
@@ -229,6 +274,7 @@ export default function Quiz({ attempt, questions, savedAnswers }: Props) {
                                                     selected
                                                         ? 'border-primary bg-primary/5 text-primary shadow-sm scale-[1.01]'
                                                         : 'border-muted bg-background hover:border-primary/40 hover:bg-muted/30 active:scale-[0.99]',
+                                                    !hasText && hasImage && 'justify-center',
                                                 )}
                                             >
                                                 <span className={cn(
@@ -236,10 +282,35 @@ export default function Quiz({ attempt, questions, savedAnswers }: Props) {
                                                     selected
                                                         ? 'border-primary bg-primary text-primary-foreground'
                                                         : 'border-muted-foreground/30 text-muted-foreground group-hover:border-primary/40 group-hover:text-primary',
+                                                    !hasText && 'sr-only',
                                                 )}>
                                                     {labels[i]}
                                                 </span>
-                                                <span className="leading-snug">{opt.option_text}</span>
+
+                                                <div className="flex flex-1 items-center gap-4">
+                                                    {hasText && (
+                                                        <span className="leading-snug">{opt.option_text}</span>
+                                                    )}
+                                                    {hasImage && (
+                                                        <div className={cn('flex-shrink-0', !hasText && 'mx-auto')}>
+                                                            <img
+                                                                src={optionImageUrl}
+                                                                alt={`Option ${labels[i]}`}
+                                                                className={cn(
+                                                                    'rounded-lg border object-contain transition-all',
+                                                                    selected
+                                                                        ? 'border-primary shadow-md'
+                                                                        : 'border-muted group-hover:border-primary/40',
+                                                                    hasText ? 'h-16 w-16' : 'h-32 w-auto max-w-full',
+                                                                )}
+                                                                loading="lazy"
+                                                                onError={(e) => {
+                                                                    (e.target as HTMLImageElement).style.display = 'none';
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </button>
                                         );
                                     })}
@@ -247,7 +318,6 @@ export default function Quiz({ attempt, questions, savedAnswers }: Props) {
                             </CardContent>
                         </Card>
 
-                        {/* Pagination Prev / Next */}
                         <div className="mt-6 flex items-center justify-between">
                             <Button
                                 variant="outline"
@@ -272,7 +342,6 @@ export default function Quiz({ attempt, questions, savedAnswers }: Props) {
                         </div>
                     </div>
 
-                    {/* Question Navigator (Desktop) */}
                     <aside className="hidden w-64 shrink-0 lg:block">
                         <Card className="sticky top-24 shadow-sm border-muted">
                             <CardContent className="p-5">
@@ -314,7 +383,6 @@ export default function Quiz({ attempt, questions, savedAnswers }: Props) {
                     </aside>
                 </main>
 
-                {/* Mobile Bottom Fixed Bar */}
                 <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background p-4 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] md:hidden">
                     <Button
                         className="w-full text-base font-semibold shadow"
@@ -327,7 +395,6 @@ export default function Quiz({ attempt, questions, savedAnswers }: Props) {
                     </Button>
                 </div>
 
-                {/* Mobile Drawer (Slide up) */}
                 {showMobileGrid && (
                     <div className="fixed inset-0 z-50 flex flex-col justify-end lg:hidden">
                         <div 
@@ -364,7 +431,6 @@ export default function Quiz({ attempt, questions, savedAnswers }: Props) {
                     </div>
                 )}
 
-                {/* Confirm Modal */}
                 {showConfirm && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 px-4 backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200">
                         <Card className="w-full max-w-sm shadow-2xl border-muted">

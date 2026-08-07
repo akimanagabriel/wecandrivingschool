@@ -24,18 +24,28 @@ class DashboardController extends Controller
             ? round(QuizAttempt::where('is_submitted', true)->where('score', '>=', 70)->count() / $totalAttempts * 100, 1)
             : 0;
 
+        // ── Monthly Revenue (Fixed) ──────────────────────────────────────────
         $monthlyRevenue = Payment::where('status', 'completed')
             ->where('paid_at', '>=', now()->subMonths(6))
-            ->groupBy(DB::raw("strftime('%Y-%m', paid_at)"))
-            ->selectRaw("strftime('%Y-%m', paid_at) as month, SUM(amount) as total")
+            ->select(
+                DB::raw("DATE_FORMAT(paid_at, '%Y-%m') as month"),
+                DB::raw("SUM(amount) as total")
+            )
+            ->groupBy(DB::raw("DATE_FORMAT(paid_at, '%Y-%m')"))
             ->orderBy('month')
-            ->get();
+            ->get()
+            ->map(fn($item) => [
+                'month' => $item->month,
+                'total' => (float) $item->total,
+            ]);
 
-        $hardestQuestions = Question::withCount([
-            'answers',
-            'answers as wrong_count' => fn($q) => $q->where('is_correct', false),
-        ])
-            ->groupBy('questions.id')
+        // ── Hardest Questions (Fixed) ───────────────────────────────────────
+        // Option 1: Use a subquery approach (works with ONLY_FULL_GROUP_BY)
+        $hardestQuestions = Question::select('questions.*')
+            ->withCount([
+                'answers',
+                'answers as wrong_count' => fn($q) => $q->where('is_correct', false),
+            ])
             ->having('answers_count', '>', 5)
             ->orderByDesc('wrong_count')
             ->limit(5)
@@ -43,10 +53,13 @@ class DashboardController extends Controller
             ->map(fn($q) => [
                 'id' => $q->id,
                 'question' => Str::limit($q->question_text, 60),
-                'fail_rate' => $q->failRate(),
+                'fail_rate' => $q->answers_count > 0
+                    ? round(($q->wrong_count / $q->answers_count) * 100, 1)
+                    : 0,
                 'total_answers' => $q->answers_count,
             ]);
 
+        // ── Recent Payments ──────────────────────────────────────────────────
         $recentPayments = Payment::with('user')
             ->latest()
             ->take(8)

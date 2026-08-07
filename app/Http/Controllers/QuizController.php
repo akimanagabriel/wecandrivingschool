@@ -15,14 +15,10 @@ use Session;
 
 class QuizController extends Controller
 {
-
-
-    /** Start or resume a quiz attempt. */
     public function start(Request $request): RedirectResponse
     {
         $user = $request->user();
 
-        // Check if this is a guest user with shared access
         if (Session::get('is_guest_user')) {
             return redirect()->route('shared.quiz.start', ['token' => Session::get('shared_access_token')]);
         }
@@ -31,7 +27,6 @@ class QuizController extends Controller
             return redirect()->route('student.payment')->with('error', 'Please purchase access to take quizzes.');
         }
 
-        // Resume an active attempt if one exists
         $existing = QuizAttempt::where('user_id', $user->id)
             ->where('is_submitted', false)
             ->where('expires_at', '>', now())
@@ -66,12 +61,10 @@ class QuizController extends Controller
         return redirect()->route('quiz.take', $attempt->id);
     }
 
-    /** Show the quiz page. */
     public function take(Request $request, QuizAttempt $attempt): Response|RedirectResponse
     {
         $user = $request->user();
 
-        // Check if guest attempt
         if ($attempt->is_guest_attempt) {
             if (!Session::get('is_guest_user')) {
                 abort(403);
@@ -82,13 +75,10 @@ class QuizController extends Controller
             ]);
         }
 
-
         $this->authorizeAttempt($request->user(), $attempt);
 
-        // Auto-submit if expired
         if ($attempt->isExpired() && !$attempt->is_submitted) {
             $this->processSubmit($attempt, []);
-
             return redirect()->route('quiz.results', $attempt->id);
         }
 
@@ -105,6 +95,7 @@ class QuizController extends Controller
                 'options' => $q->options->shuffle()->values()->map(fn($o) => [
                     'id' => $o->id,
                     'option_text' => $o->option_text,
+                    'image_path' => $o->image_path,
                 ]),
             ]);
 
@@ -122,7 +113,6 @@ class QuizController extends Controller
         ]);
     }
 
-    /** Save a single answer via AJAX. */
     public function saveAnswer(Request $request, QuizAttempt $attempt): JsonResponse
     {
         $this->authorizeAttempt($request->user(), $attempt);
@@ -139,13 +129,11 @@ class QuizController extends Controller
         $questionId = (int) $validated['question_id'];
         $optionId = (int) $validated['option_id'];
 
-        // Guard: question must still exist and belong to this attempt
         $question = Question::find($questionId);
         if (!$question || !in_array($questionId, $attempt->question_ids ?? [], true)) {
             return response()->json(['warning' => 'Question no longer available.'], 200);
         }
 
-        // Guard: option must belong to this question
         $option = $question->options()->find($optionId);
         if (!$option) {
             return response()->json(['warning' => 'Option not valid for this question.'], 200);
@@ -159,7 +147,6 @@ class QuizController extends Controller
         return response()->json(['success' => true]);
     }
 
-    /** Final quiz submission. */
     public function submit(Request $request, QuizAttempt $attempt): RedirectResponse
     {
         $this->authorizeAttempt($request->user(), $attempt);
@@ -173,7 +160,6 @@ class QuizController extends Controller
         return redirect()->route('quiz.results', $attempt->id);
     }
 
-    /** Show quiz results. */
     public function results(Request $request, QuizAttempt $attempt): Response|RedirectResponse
     {
         $this->authorizeAttempt($request->user(), $attempt);
@@ -196,10 +182,13 @@ class QuizController extends Controller
                     : null,
                 'is_correct' => $a->is_correct,
                 'selected_option' => $a->selectedOption?->option_text,
+                'selected_option_image' => $a->selectedOption?->image_path,
                 'correct_option' => $a->question->options->firstWhere('is_correct', true)?->option_text,
+                'correct_option_image' => $a->question->options->firstWhere('is_correct', true)?->image_path,
                 'all_options' => $a->question->options->map(fn($o) => [
                     'id' => $o->id,
                     'text' => $o->option_text,
+                    'image_path' => $o->image_path,
                     'is_correct' => $o->is_correct,
                 ]),
             ]);
@@ -220,8 +209,6 @@ class QuizController extends Controller
         ]);
     }
 
-    // ─── Helpers ──────────────────────────────────────────────────────────────
-
     private function authorizeAttempt($user, QuizAttempt $attempt): void
     {
         if ($attempt->user_id !== $user->id && !$user->hasRole('admin')) {
@@ -232,11 +219,9 @@ class QuizController extends Controller
     private function processSubmit(QuizAttempt $attempt, array $answers): void
     {
         DB::transaction(function () use ($attempt, $answers) {
-            // Collect valid question IDs that still exist in the DB from this attempt.
-            // Questions may have been deleted by an admin after the quiz started.
             $validQuestionIds = Question::whereIn('id', $attempt->question_ids ?? [])
                 ->pluck('id')
-                ->flip(); // keyed by id for O(1) lookup
+                ->flip();
 
             foreach ($answers as $questionId => $optionId) {
                 $questionId = (int) $questionId;
@@ -246,12 +231,10 @@ class QuizController extends Controller
                     continue;
                 }
 
-                // Skip questions that were deleted since the attempt was created
                 if (!isset($validQuestionIds[$questionId])) {
                     continue;
                 }
 
-                // Validate the option still exists and belongs to this question
                 $option = \App\Models\Option::where('id', $optionId)
                     ->where('question_id', $questionId)
                     ->first();

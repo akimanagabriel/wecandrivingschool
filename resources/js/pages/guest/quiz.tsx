@@ -1,4 +1,3 @@
-// resources/js/pages/guest/quiz.tsx
 import { useCallback, useEffect, useRef, useState, memo } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { toast } from 'sonner';
@@ -21,7 +20,11 @@ interface Question {
     question_text: string;
     image_path: string | null;
     category: string;
-    options: Array<{ id: number; option_text: string }>;
+    options: Array<{
+        id: number;
+        option_text: string;
+        image_path: string | null;
+    }>;
 }
 
 interface Props {
@@ -34,6 +37,29 @@ interface Props {
     questions: Question[];
     savedAnswers: Record<number, number>;
 }
+
+// ── Helper function to get correct image URL ──────────────────────────────
+const getImageUrl = (path: string | null): string | null => {
+    if (!path) return null;
+
+    // If it's already a full URL
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+        return path;
+    }
+
+    // If it starts with 'storage/', add leading slash
+    if (path.startsWith('storage/')) {
+        return '/' + path;
+    }
+
+    // If it starts with '/', return as is
+    if (path.startsWith('/')) {
+        return path;
+    }
+
+    // Otherwise, prepend /storage/
+    return '/storage/' + path;
+};
 
 // ── Isolated Countdown Timer ──────────────────────────────────────────────────
 const CountdownTimer = memo(
@@ -248,6 +274,8 @@ export default function GuestQuiz({
         );
     }
 
+    const questionImageUrl = getImageUrl(current.image_path);
+
     return (
         <>
             <Head title="Theory Test Practice" />
@@ -332,12 +360,17 @@ export default function GuestQuiz({
                                     {current.question_text}
                                 </h2>
 
-                                {current.image_path && (
+                                {questionImageUrl && (
                                     <div className="mb-6 flex justify-center">
                                         <img
-                                            src={current.image_path}
+                                            src={questionImageUrl}
                                             alt="Question illustration"
                                             className="max-h-64 w-auto rounded-xl border border-muted object-contain shadow-sm"
+                                            onError={(e) => {
+                                                (
+                                                    e.target as HTMLImageElement
+                                                ).style.display = 'none';
+                                            }}
                                         />
                                     </div>
                                 )}
@@ -346,6 +379,14 @@ export default function GuestQuiz({
                                     {current.options.map((opt, i) => {
                                         const selected =
                                             answers[current.id] === opt.id;
+
+                                        const optionImageUrl = getImageUrl(
+                                            opt.image_path,
+                                        );
+                                        const hasText =
+                                            opt.option_text?.trim()?.length > 0;
+                                        const hasImage = !!optionImageUrl;
+
                                         return (
                                             <button
                                                 key={opt.id}
@@ -360,6 +401,9 @@ export default function GuestQuiz({
                                                     selected
                                                         ? 'scale-[1.01] border-primary bg-primary/5 text-primary shadow-sm'
                                                         : 'border-muted bg-background hover:border-primary/40 hover:bg-muted/30 active:scale-[0.99]',
+                                                    !hasText &&
+                                                        hasImage &&
+                                                        'justify-center',
                                                 )}
                                             >
                                                 <span
@@ -368,13 +412,54 @@ export default function GuestQuiz({
                                                         selected
                                                             ? 'border-primary bg-primary text-primary-foreground'
                                                             : 'border-muted-foreground/30 text-muted-foreground group-hover:border-primary/40 group-hover:text-primary',
+                                                        !hasText && 'sr-only',
                                                     )}
                                                 >
                                                     {labels[i]}
                                                 </span>
-                                                <span className="leading-snug">
-                                                    {opt.option_text}
-                                                </span>
+
+                                                <div className="flex flex-1 items-center gap-4">
+                                                    {hasText && (
+                                                        <span className="leading-snug">
+                                                            {opt.option_text}
+                                                        </span>
+                                                    )}
+
+                                                    {hasImage && (
+                                                        <div
+                                                            className={cn(
+                                                                'flex-shrink-0',
+                                                                !hasText &&
+                                                                    'mx-auto',
+                                                            )}
+                                                        >
+                                                            <img
+                                                                src={
+                                                                    optionImageUrl
+                                                                }
+                                                                alt={`Option ${labels[i]}`}
+                                                                className={cn(
+                                                                    'rounded-lg border object-contain transition-all',
+                                                                    selected
+                                                                        ? 'border-primary shadow-md'
+                                                                        : 'border-muted group-hover:border-primary/40',
+                                                                    hasText
+                                                                        ? 'h-16 w-16'
+                                                                        : 'h-32 w-auto max-w-full',
+                                                                )}
+                                                                loading="lazy"
+                                                                onError={(
+                                                                    e,
+                                                                ) => {
+                                                                    (
+                                                                        e.target as HTMLImageElement
+                                                                    ).style.display =
+                                                                        'none';
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </button>
                                         );
                                     })}

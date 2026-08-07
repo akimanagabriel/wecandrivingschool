@@ -17,24 +17,31 @@ class QuestionController extends Controller
     public function index(Request $request): Response
     {
         $questions = Question::with(['category', 'options'])
-            ->when($request->search, fn ($q) => $q->where('question_text', 'like', "%{$request->search}%"))
-            ->when($request->category_id, fn ($q) => $q->where('category_id', $request->category_id))
+            ->when($request->search, fn($q) => $q->where('question_text', 'like', "%{$request->search}%"))
+            ->when($request->category_id, fn($q) => $q->where('category_id', $request->category_id))
             ->latest()
             ->paginate(20)
             ->withQueryString()
-            ->through(fn ($q) => [
-                'id'            => $q->id,
+            ->through(fn($q) => [
+                'id' => $q->id,
                 'question_text' => $q->question_text,
-                'category'      => $q->category->name,
-                'difficulty'    => $q->difficulty,
-                'is_active'     => $q->is_active,
+                'category' => $q->category->name,
+                'difficulty' => $q->difficulty,
+                'is_active' => $q->is_active,
                 'options_count' => $q->options->count(),
+                'image_path' => $q->image_path,
+                'options' => $q->options->map(fn($o) => [
+                    'id' => $o->id,
+                    'option_text' => $o->option_text,
+                    'image_path' => $o->image_path,
+                    'is_correct' => $o->is_correct,
+                ]),
             ]);
 
         return Inertia::render('admin/questions/index', [
-            'questions'  => $questions,
+            'questions' => $questions,
             'categories' => Category::all(['id', 'name']),
-            'filters'    => $request->only(['search', 'category_id']),
+            'filters' => $request->only(['search', 'category_id']),
         ]);
     }
 
@@ -51,30 +58,40 @@ class QuestionController extends Controller
         $this->ensureOneCorrectAnswer($validated['options']);
 
         DB::transaction(function () use ($request, $validated) {
+            // Handle question audio
             $audioPath = null;
             if ($request->hasFile('explanation_audio')) {
                 $audioPath = $request->file('explanation_audio')->store('audio', 'public');
             }
 
+            // Handle question image
             $imagePath = null;
             if ($request->hasFile('image')) {
                 $imagePath = $request->file('image')->store('questions/images', 'public');
             }
 
             $question = Question::create([
-                'category_id'            => $validated['category_id'],
-                'question_text'          => $validated['question_text'],
-                'image_path'             => $imagePath,
-                'difficulty'             => $validated['difficulty'],
-                'explanation'            => $validated['explanation'] ?? null,
+                'category_id' => $validated['category_id'],
+                'question_text' => $validated['question_text'],
+                'image_path' => $imagePath,
+                'difficulty' => $validated['difficulty'],
+                'explanation' => $validated['explanation'] ?? null,
                 'explanation_audio_path' => $audioPath,
-                'is_active'              => $validated['is_active'] ?? true,
+                'is_active' => $validated['is_active'] ?? true,
             ]);
+
+            // Create options with images
             foreach ($validated['options'] as $i => $opt) {
+                $optionImagePath = null;
+                if ($request->hasFile("options.{$i}.image")) {
+                    $optionImagePath = $request->file("options.{$i}.image")->store('option_images', 'public');
+                }
+
                 $question->options()->create([
                     'option_text' => $opt['option_text'],
-                    'is_correct'  => $opt['is_correct'],
-                    'order'       => $i,
+                    'image_path' => $optionImagePath,
+                    'is_correct' => $opt['is_correct'],
+                    'order' => $i,
                 ]);
             }
         });
@@ -85,7 +102,7 @@ class QuestionController extends Controller
     public function edit(Question $question): Response
     {
         return Inertia::render('admin/questions/form', [
-            'question'   => $question->load('options'),
+            'question' => $question->load('options'),
             'categories' => Category::all(['id', 'name']),
         ]);
     }
@@ -96,10 +113,9 @@ class QuestionController extends Controller
         $this->ensureOneCorrectAnswer($validated['options']);
 
         DB::transaction(function () use ($request, $validated, $question) {
+            // Handle question audio
             $audioPath = $question->explanation_audio_path;
-
             if ($request->hasFile('explanation_audio')) {
-                // Delete old file if it exists
                 if ($audioPath) {
                     Storage::disk('public')->delete($audioPath);
                 }
@@ -111,8 +127,8 @@ class QuestionController extends Controller
                 $audioPath = null;
             }
 
+            // Handle question image
             $imagePath = $question->image_path;
-
             if ($request->hasFile('image')) {
                 if ($imagePath) {
                     Storage::disk('public')->delete($imagePath);
@@ -126,20 +142,35 @@ class QuestionController extends Controller
             }
 
             $question->update([
-                'category_id'            => $validated['category_id'],
-                'question_text'          => $validated['question_text'],
-                'image_path'             => $imagePath,
-                'difficulty'             => $validated['difficulty'],
-                'explanation'            => $validated['explanation'] ?? null,
+                'category_id' => $validated['category_id'],
+                'question_text' => $validated['question_text'],
+                'image_path' => $imagePath,
+                'difficulty' => $validated['difficulty'],
+                'explanation' => $validated['explanation'] ?? null,
                 'explanation_audio_path' => $audioPath,
-                'is_active'              => $validated['is_active'] ?? true,
+                'is_active' => $validated['is_active'] ?? true,
             ]);
+
+            // Delete old options and their images
+            foreach ($question->options as $oldOption) {
+                if ($oldOption->image_path) {
+                    Storage::disk('public')->delete($oldOption->image_path);
+                }
+            }
             $question->options()->delete();
+
+            // Create new options with images
             foreach ($validated['options'] as $i => $opt) {
+                $optionImagePath = null;
+                if ($request->hasFile("options.{$i}.image")) {
+                    $optionImagePath = $request->file("options.{$i}.image")->store('option_images', 'public');
+                }
+
                 $question->options()->create([
                     'option_text' => $opt['option_text'],
-                    'is_correct'  => $opt['is_correct'],
-                    'order'       => $i,
+                    'image_path' => $optionImagePath,
+                    'is_correct' => $opt['is_correct'],
+                    'order' => $i,
                 ]);
             }
         });
@@ -149,6 +180,16 @@ class QuestionController extends Controller
 
     public function destroy(Question $question): RedirectResponse
     {
+        // Delete associated images
+        if ($question->image_path) {
+            Storage::disk('public')->delete($question->image_path);
+        }
+        foreach ($question->options as $option) {
+            if ($option->image_path) {
+                Storage::disk('public')->delete($option->image_path);
+            }
+        }
+
         $question->delete();
 
         return back()->with('success', 'Question deleted.');
@@ -158,39 +199,45 @@ class QuestionController extends Controller
 
     private function validateQuestion(Request $request, bool $withOptionIds = false): array
     {
-        // Allowed server-detected MIME types.
-        // NOTE: finfo always reports webm containers as video/webm (even audio-only),
-        // so we must include video/webm to accept browser MediaRecorder recordings.
         $allowedMimes = [
-            'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav',
-            'audio/ogg',  'audio/mp4', 'audio/x-m4a',
-            'audio/webm', 'video/webm', // webm recorded in-browser
+            'audio/mpeg',
+            'audio/mp3',
+            'audio/wav',
+            'audio/x-wav',
+            'audio/ogg',
+            'audio/mp4',
+            'audio/x-m4a',
+            'audio/webm',
+            'video/webm',
         ];
 
         return $request->validate([
-            'category_id'           => 'required|exists:categories,id',
-            'question_text'         => 'required|string',
-            'difficulty'            => 'required|in:easy,medium,hard',
-            'explanation'           => 'nullable|string',
-            'image'                 => 'nullable|file|image|max:5120',
-            'remove_image'          => 'nullable|boolean',
-            'explanation_audio'     => [
+            'category_id' => 'required|exists:categories,id',
+            'question_text' => 'required|string',
+            'difficulty' => 'required|in:easy,medium,hard',
+            'explanation' => 'nullable|string',
+            'image' => 'nullable|file|image|max:5120',
+            'remove_image' => 'nullable|boolean',
+            'explanation_audio' => [
                 'nullable',
                 'file',
                 'max:20480',
                 function ($attribute, $value, $fail) use ($allowedMimes) {
-                    if ($value === null) return;
+                    if ($value === null)
+                        return;
                     $mime = strtolower(trim(explode(';', $value->getMimeType() ?? '')[0]));
-                    if (! in_array($mime, $allowedMimes, true)) {
+                    if (!in_array($mime, $allowedMimes, true)) {
                         $fail('The audio explanation must be an audio file (mp3, wav, ogg, m4a, or webm).');
                     }
                 },
             ],
-            'remove_audio'          => 'nullable|boolean',
-            'is_active'             => 'boolean',
-            'options'               => 'required|array|min:2|max:6',
+            'remove_audio' => 'nullable|boolean',
+            'is_active' => 'boolean',
+            'options' => 'required|array|min:2|max:6',
             'options.*.option_text' => 'required|string',
-            'options.*.is_correct'  => 'required|boolean',
+            'options.*.is_correct' => 'required|boolean',
+            'options.*.image' => 'nullable|file|image|max:5120',
+            'options.*.remove_image' => 'nullable|boolean',
         ]);
     }
 

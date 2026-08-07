@@ -41,7 +41,27 @@ class Question extends Model
         return $this->hasMany(Answer::class);
     }
 
-    // How many times this question was answered incorrectly (for analytics)
+    public function getImageUrlAttribute(): ?string
+    {
+        if (!$this->image_path) {
+            return null;
+        }
+
+        if (str_starts_with($this->image_path, 'http://') || str_starts_with($this->image_path, 'https://')) {
+            return $this->image_path;
+        }
+
+        if (str_starts_with($this->image_path, 'storage/')) {
+            return '/' . $this->image_path;
+        }
+
+        if (str_starts_with($this->image_path, '/')) {
+            return $this->image_path;
+        }
+
+        return '/storage/' . $this->image_path;
+    }
+
     public function failRate(): float
     {
         $total = $this->answers()->count();

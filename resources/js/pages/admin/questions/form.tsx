@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, useEffect } from 'react';
 import { Head, router, useForm } from '@inertiajs/react';
 import {
     ArrowLeft,
@@ -43,6 +43,10 @@ type QuestionOption = {
     id?: number;
     option_text: string;
     is_correct: boolean;
+    image_path?: string | null;
+    image?: File | null;
+    remove_image?: boolean;
+    preview_url?: string | null; // <-- Added for better preview management
 };
 
 type Question = {
@@ -85,10 +89,38 @@ export default function QuestionForm({ question, categories }: Props) {
     ];
 
     const defaultOptions: QuestionOption[] = [
-        { option_text: '', is_correct: false },
-        { option_text: '', is_correct: false },
-        { option_text: '', is_correct: false },
-        { option_text: '', is_correct: false },
+        {
+            option_text: '',
+            is_correct: false,
+            image_path: null,
+            image: null,
+            remove_image: false,
+            preview_url: null,
+        },
+        {
+            option_text: '',
+            is_correct: false,
+            image_path: null,
+            image: null,
+            remove_image: false,
+            preview_url: null,
+        },
+        {
+            option_text: '',
+            is_correct: false,
+            image_path: null,
+            image: null,
+            remove_image: false,
+            preview_url: null,
+        },
+        {
+            option_text: '',
+            is_correct: false,
+            image_path: null,
+            image: null,
+            remove_image: false,
+            preview_url: null,
+        },
     ];
 
     const { data, setData, post, processing, errors } = useForm<FormData>({
@@ -101,8 +133,32 @@ export default function QuestionForm({ question, categories }: Props) {
         explanation_audio: null,
         remove_audio: false,
         is_active: question?.is_active ?? true,
-        options: question?.options?.length ? question.options : defaultOptions,
+        options: question?.options?.length
+            ? question.options.map((opt) => ({
+                  ...opt,
+                  image: null,
+                  remove_image: false,
+                  preview_url: opt.image_path
+                      ? `/storage/${opt.image_path}`
+                      : null,
+              }))
+            : defaultOptions,
     });
+
+    // ── Cleanup object URLs on unmount ────────────────────────────────────────
+    useEffect(() => {
+        return () => {
+            // Revoke any object URLs when component unmounts
+            data.options.forEach((opt) => {
+                if (opt.preview_url?.startsWith('blob:')) {
+                    URL.revokeObjectURL(opt.preview_url);
+                }
+            });
+            if (data.image) {
+                URL.revokeObjectURL(URL.createObjectURL(data.image));
+            }
+        };
+    }, []);
 
     // ── Audio recorder state ────────────────────────────────────────────────────
     type AudioTab = 'upload' | 'record';
@@ -114,6 +170,15 @@ export default function QuestionForm({ question, categories }: Props) {
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const chunksRef = useRef<Blob[]>([]);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    // ── Question image preview ──────────────────────────────────────────────────
+    const questionImagePreview = data.image
+        ? URL.createObjectURL(data.image)
+        : data.remove_image
+          ? null
+          : question?.image_path
+            ? `/storage/${question.image_path}`
+            : null;
 
     const startRecording = useCallback(async () => {
         try {
@@ -189,6 +254,14 @@ export default function QuestionForm({ question, categories }: Props) {
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Clean up preview URLs before submit
+        const cleanOptions = data.options.map((opt) => {
+            const { preview_url, ...rest } = opt;
+            return rest;
+        });
+
+        // We need to use the original data with files for FormData
         if (isEditing) {
             post(`/admin/questions/${question.id}`, {
                 forceFormData: true,
@@ -202,13 +275,37 @@ export default function QuestionForm({ question, categories }: Props) {
     const updateOption = (
         i: number,
         field: keyof QuestionOption,
-        value: string | boolean,
+        value: string | boolean | File | null,
     ) => {
         const opts = [...data.options];
+
         if (field === 'is_correct') {
             opts.forEach((_, idx) => {
                 opts[idx] = { ...opts[idx], is_correct: idx === i };
             });
+        } else if (field === 'image') {
+            // When setting a new image, create a preview URL
+            const file = value as File | null;
+            // Revoke old preview URL if it exists and is a blob
+            if (opts[i].preview_url?.startsWith('blob:')) {
+                URL.revokeObjectURL(opts[i].preview_url!);
+            }
+            opts[i] = {
+                ...opts[i],
+                image: file,
+                preview_url: file ? URL.createObjectURL(file) : null,
+                remove_image: false,
+            };
+        } else if (field === 'remove_image') {
+            // When removing an image, clear the preview
+            if (opts[i].preview_url?.startsWith('blob:')) {
+                URL.revokeObjectURL(opts[i].preview_url!);
+            }
+            opts[i] = {
+                ...opts[i],
+                remove_image: value as boolean,
+                preview_url: value ? null : opts[i].preview_url,
+            };
         } else {
             opts[i] = { ...opts[i], [field]: value };
         }
@@ -218,10 +315,22 @@ export default function QuestionForm({ question, categories }: Props) {
     const addOption = () =>
         setData('options', [
             ...data.options,
-            { option_text: '', is_correct: false },
+            {
+                option_text: '',
+                is_correct: false,
+                image_path: null,
+                image: null,
+                remove_image: false,
+                preview_url: null,
+            },
         ]);
+
     const removeOption = (i: number) => {
         if (data.options.length <= 2) return;
+        // Clean up preview URL before removing
+        if (data.options[i].preview_url?.startsWith('blob:')) {
+            URL.revokeObjectURL(data.options[i].preview_url!);
+        }
         setData(
             'options',
             data.options.filter((_, idx) => idx !== i),
@@ -342,13 +451,15 @@ export default function QuestionForm({ question, categories }: Props) {
                                     />
                                 </div>
 
-                                {/* Question Image Section */}
+                                {/* ─── Question Image Section ─── */}
                                 <div className="space-y-3 rounded-2xl border border-dashed border-muted/80 bg-muted/10 p-6">
                                     <Label className="flex items-center gap-2 text-sm font-bold tracking-wider text-muted-foreground uppercase">
-                                        <ImageIcon className="h-4 w-4" /> Question Image (Optional)
+                                        <ImageIcon className="h-4 w-4" />{' '}
+                                        Question Image (Optional)
                                     </Label>
-                                    <p className="text-xs text-muted-foreground -mt-1">
-                                        Add a road sign, diagram, or any image related to this question.
+                                    <p className="-mt-1 text-xs text-muted-foreground">
+                                        Add a road sign, diagram, or any image
+                                        related to this question.
                                     </p>
 
                                     {/* Existing image banner */}
@@ -360,22 +471,29 @@ export default function QuestionForm({ question, categories }: Props) {
                                                 <img
                                                     src={`/storage/${question.image_path}`}
                                                     alt="Question image"
-                                                    className="h-24 w-auto rounded-lg object-contain border border-blue-200 bg-white"
+                                                    className="h-24 w-auto rounded-lg border border-blue-200 bg-white object-contain"
                                                 />
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-xs font-black tracking-widest text-blue-600 uppercase mb-1">
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="mb-1 text-xs font-black tracking-widest text-blue-600 uppercase">
                                                         Current Image
                                                     </p>
-                                                    <p className="text-xs text-blue-500 truncate">
-                                                        {question.image_path.split('/').pop()}
+                                                    <p className="truncate text-xs text-blue-500">
+                                                        {question.image_path
+                                                            .split('/')
+                                                            .pop()}
                                                     </p>
                                                 </div>
                                                 <Button
                                                     type="button"
                                                     variant="ghost"
                                                     size="icon"
-                                                    className="h-8 w-8 rounded-lg text-blue-600 hover:bg-red-100 hover:text-red-600 shrink-0"
-                                                    onClick={() => setData('remove_image', true)}
+                                                    className="h-8 w-8 shrink-0 rounded-lg text-blue-600 hover:bg-red-100 hover:text-red-600"
+                                                    onClick={() =>
+                                                        setData(
+                                                            'remove_image',
+                                                            true,
+                                                        )
+                                                    }
                                                     title="Remove existing image"
                                                 >
                                                     <Trash2 className="h-4 w-4" />
@@ -383,12 +501,12 @@ export default function QuestionForm({ question, categories }: Props) {
                                             </div>
                                         )}
 
+                                    {/* Image upload zone */}
                                     {(!isEditing ||
                                         !question.image_path ||
                                         data.remove_image ||
                                         data.image) && (
                                         <div className="space-y-4">
-                                            {/* Image drop zone */}
                                             <div
                                                 className={cn(
                                                     'relative flex min-h-40 flex-col items-center justify-center rounded-2xl border-2 border-dashed transition-all',
@@ -398,11 +516,14 @@ export default function QuestionForm({ question, categories }: Props) {
                                                 )}
                                             >
                                                 {data.image ? (
-                                                    <div className="flex flex-col items-center gap-3 p-4 text-center w-full">
+                                                    <div className="flex w-full flex-col items-center gap-3 p-4 text-center">
                                                         <img
-                                                            src={URL.createObjectURL(data.image)}
+                                                            src={
+                                                                questionImagePreview ||
+                                                                undefined
+                                                            }
                                                             alt="Preview"
-                                                            className="max-h-40 w-auto rounded-lg object-contain border border-muted shadow-sm"
+                                                            className="max-h-40 w-auto rounded-lg border border-muted object-contain shadow-sm"
                                                         />
                                                         <span className="text-xs font-bold text-blue-700">
                                                             {data.image.name}
@@ -413,7 +534,10 @@ export default function QuestionForm({ question, categories }: Props) {
                                                             size="sm"
                                                             className="text-red-500 hover:bg-red-50"
                                                             onClick={() => {
-                                                                setData('image', null);
+                                                                setData(
+                                                                    'image',
+                                                                    null,
+                                                                );
                                                             }}
                                                         >
                                                             <Trash2 className="mr-1 h-3.5 w-3.5" />{' '}
@@ -424,10 +548,12 @@ export default function QuestionForm({ question, categories }: Props) {
                                                     <>
                                                         <ImageIcon className="mb-2 h-8 w-8 text-muted-foreground opacity-30" />
                                                         <p className="text-sm font-bold text-muted-foreground">
-                                                            Click to upload an image
+                                                            Click to upload an
+                                                            image
                                                         </p>
-                                                        <p className="text-xs text-muted-foreground/60 mt-1">
-                                                            PNG, JPG, GIF, WebP — max 5 MB
+                                                        <p className="mt-1 text-xs text-muted-foreground/60">
+                                                            PNG, JPG, GIF, WebP
+                                                            — max 5 MB
                                                         </p>
                                                         <input
                                                             id="question_image"
@@ -436,7 +562,9 @@ export default function QuestionForm({ question, categories }: Props) {
                                                             onChange={(e) =>
                                                                 setData(
                                                                     'image',
-                                                                    e.target.files?.[0] ?? null,
+                                                                    e.target
+                                                                        .files?.[0] ??
+                                                                        null,
                                                                 )
                                                             }
                                                             className="absolute inset-0 cursor-pointer opacity-0"
@@ -453,7 +581,9 @@ export default function QuestionForm({ question, categories }: Props) {
                                             </div>
                                         </div>
                                     )}
-                                    <InputError message={errors.image as string} />
+                                    <InputError
+                                        message={errors.image as string}
+                                    />
                                 </div>
 
                                 <div className="flex items-center gap-3 space-y-0 rounded-xl border border-muted/50 bg-muted/30 p-4">
@@ -504,7 +634,7 @@ export default function QuestionForm({ question, categories }: Props) {
                                     />
                                 </div>
 
-                                {/* Audio Explanation Section */}
+                                {/* Audio Explanation Section - unchanged */}
                                 <div className="space-y-3 rounded-2xl border border-dashed border-muted/80 bg-muted/10 p-6">
                                     <Label className="flex items-center gap-2 text-sm font-bold tracking-wider text-muted-foreground uppercase">
                                         <Mic className="h-4 w-4" /> Audio
@@ -788,7 +918,7 @@ export default function QuestionForm({ question, categories }: Props) {
                                     />
                                 </div>
 
-                                {/* Options Section */}
+                                {/* ─── Options Section with Image Support ─── */}
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
                                         <Label className="text-sm font-bold tracking-wider text-muted-foreground uppercase">
@@ -801,81 +931,187 @@ export default function QuestionForm({ question, categories }: Props) {
                                     </div>
 
                                     <div className="space-y-3">
-                                        {data.options.map((opt, i) => (
-                                            <div
-                                                key={i}
-                                                className={cn(
-                                                    'relative flex items-center gap-4 rounded-2xl border-2 px-5 py-4 transition-all duration-300',
-                                                    opt.is_correct
-                                                        ? 'scale-[1.01] border-green-400 bg-green-50 shadow-md dark:bg-green-950/20'
-                                                        : 'border-muted bg-background hover:border-primary/20',
-                                                )}
-                                            >
-                                                <div className="relative">
-                                                    <input
-                                                        type="radio"
-                                                        name="correct_option"
-                                                        checked={opt.is_correct}
-                                                        onChange={() =>
-                                                            updateOption(
-                                                                i,
-                                                                'is_correct',
-                                                                true,
-                                                            )
-                                                        }
-                                                        className="relative z-10 h-6 w-6 cursor-pointer opacity-0"
-                                                    />
-                                                    <div
-                                                        className={cn(
-                                                            'absolute inset-0 flex items-center justify-center rounded-full border-2 transition-all',
-                                                            opt.is_correct
-                                                                ? 'border-green-600 bg-green-600 text-white'
-                                                                : 'border-muted-foreground/30',
-                                                        )}
-                                                    >
-                                                        {opt.is_correct ? (
-                                                            <Check className="h-3.5 w-3.5 stroke-[3px]" />
-                                                        ) : (
-                                                            <span className="text-[10px] font-black">
-                                                                {labels[i]}
-                                                            </span>
+                                        {data.options.map((opt, i) => {
+                                            // Use the preview_url which already has the correct path
+                                            const previewImage =
+                                                opt.preview_url;
+
+                                            return (
+                                                <div
+                                                    key={i}
+                                                    className={cn(
+                                                        'relative flex flex-col gap-3 rounded-2xl border-2 px-5 py-4 transition-all duration-300',
+                                                        opt.is_correct
+                                                            ? 'scale-[1.01] border-green-400 bg-green-50 shadow-md dark:bg-green-950/20'
+                                                            : 'border-muted bg-background hover:border-primary/20',
+                                                    )}
+                                                >
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="relative">
+                                                            <input
+                                                                type="radio"
+                                                                name="correct_option"
+                                                                checked={
+                                                                    opt.is_correct
+                                                                }
+                                                                onChange={() =>
+                                                                    updateOption(
+                                                                        i,
+                                                                        'is_correct',
+                                                                        true,
+                                                                    )
+                                                                }
+                                                                className="relative z-10 h-6 w-6 cursor-pointer opacity-0"
+                                                            />
+                                                            <div
+                                                                className={cn(
+                                                                    'absolute inset-0 flex items-center justify-center rounded-full border-2 transition-all',
+                                                                    opt.is_correct
+                                                                        ? 'border-green-600 bg-green-600 text-white'
+                                                                        : 'border-muted-foreground/30',
+                                                                )}
+                                                            >
+                                                                {opt.is_correct ? (
+                                                                    <Check className="h-3.5 w-3.5 stroke-[3px]" />
+                                                                ) : (
+                                                                    <span className="text-[10px] font-black">
+                                                                        {
+                                                                            labels[
+                                                                                i
+                                                                            ]
+                                                                        }
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        <input
+                                                            type="text"
+                                                            value={
+                                                                opt.option_text
+                                                            }
+                                                            onChange={(e) =>
+                                                                updateOption(
+                                                                    i,
+                                                                    'option_text',
+                                                                    e.target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                            placeholder={`Enter option ${labels[i]} here...`}
+                                                            required
+                                                            className="min-w-0 flex-1 bg-transparent text-[15px] font-medium transition-all outline-none placeholder:text-muted-foreground/50 focus:text-primary"
+                                                        />
+
+                                                        {data.options.length >
+                                                            2 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    removeOption(
+                                                                        i,
+                                                                    )
+                                                                }
+                                                                className={cn(
+                                                                    'rounded-lg p-2 transition-colors',
+                                                                    opt.is_correct
+                                                                        ? 'text-green-800/40 hover:bg-red-100 hover:text-red-600'
+                                                                        : 'text-muted-foreground hover:bg-red-50 hover:text-red-500',
+                                                                )}
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </button>
                                                         )}
                                                     </div>
-                                                </div>
 
-                                                <input
-                                                    type="text"
-                                                    value={opt.option_text}
-                                                    onChange={(e) =>
-                                                        updateOption(
-                                                            i,
-                                                            'option_text',
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                    placeholder={`Enter option ${labels[i]} here...`}
-                                                    required
-                                                    className="min-w-0 flex-1 bg-transparent text-[15px] font-medium transition-all outline-none placeholder:text-muted-foreground/50 focus:text-primary"
-                                                />
+                                                    {/* Option Image Upload */}
+                                                    <div className="ml-10 flex items-center gap-3">
+                                                        <div className="relative">
+                                                            <input
+                                                                type="file"
+                                                                accept="image/*"
+                                                                onChange={(
+                                                                    e,
+                                                                ) => {
+                                                                    const file =
+                                                                        e.target
+                                                                            .files?.[0] ||
+                                                                        null;
+                                                                    updateOption(
+                                                                        i,
+                                                                        'image',
+                                                                        file,
+                                                                    );
+                                                                }}
+                                                                className="absolute inset-0 cursor-pointer opacity-0"
+                                                            />
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="h-8 text-[10px] font-bold tracking-widest uppercase"
+                                                            >
+                                                                <ImageIcon className="mr-1.5 h-3.5 w-3.5" />
+                                                                Add Image
+                                                            </Button>
+                                                        </div>
 
-                                                {data.options.length > 2 && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            removeOption(i)
-                                                        }
-                                                        className={cn(
-                                                            'rounded-lg p-2 transition-colors',
-                                                            opt.is_correct
-                                                                ? 'text-green-800/40 hover:bg-red-100 hover:text-red-600'
-                                                                : 'text-muted-foreground hover:bg-red-50 hover:text-red-500',
+                                                        {/* Show preview if image exists */}
+                                                        {previewImage && (
+                                                            <div className="flex items-center gap-2">
+                                                                <img
+                                                                    src={
+                                                                        previewImage
+                                                                    }
+                                                                    alt={`Option ${labels[i]}`}
+                                                                    className="h-12 w-12 rounded-lg border border-muted bg-white object-contain"
+                                                                />
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-6 w-6 text-muted-foreground hover:text-red-500"
+                                                                    onClick={() => {
+                                                                        // If it's a new file, clear it
+                                                                        if (
+                                                                            opt.image
+                                                                        ) {
+                                                                            updateOption(
+                                                                                i,
+                                                                                'image',
+                                                                                null,
+                                                                            );
+                                                                        }
+                                                                        // If it's an existing image, mark for removal
+                                                                        else if (
+                                                                            opt.image_path
+                                                                        ) {
+                                                                            updateOption(
+                                                                                i,
+                                                                                'remove_image',
+                                                                                true,
+                                                                            );
+                                                                        }
+                                                                    }}
+                                                                    title="Remove image"
+                                                                >
+                                                                    <X className="h-3.5 w-3.5" />
+                                                                </Button>
+                                                            </div>
                                                         )}
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </button>
-                                                )}
-                                            </div>
-                                        ))}
+
+                                                        {/* Show if image is marked for removal */}
+                                                        {opt.remove_image &&
+                                                            opt.image_path && (
+                                                                <span className="text-[10px] font-bold text-red-500 uppercase">
+                                                                    (will be
+                                                                    removed)
+                                                                </span>
+                                                            )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                     <InputError
                                         message={errors.options as string}

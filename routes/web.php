@@ -22,3 +22,4 @@ Route::middleware(['auth', 'verified'])->group(function () {
 require __DIR__ . '/settings.php';
 require __DIR__ . '/wecan.php';
 require __DIR__ . '/link_access.php';
+require __DIR__ . '/public_quiz_link.php';

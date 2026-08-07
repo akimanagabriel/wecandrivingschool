@@ -11,7 +11,6 @@ use App\Models\SharedAccessSession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class SharedAccessController extends Controller
@@ -24,12 +23,10 @@ class SharedAccessController extends Controller
             return redirect()->back()->with('error', 'This access link has expired or reached its maximum usage limit.');
         }
 
-        // verify if it not exp[ired or overused (middleware should have already blocked expired/overused links, but double check here) ]
         if ($link && ($link->is_expired || $link->used_count >= $link->max_uses)) {
             return redirect()->back()->with('error', 'This access link has expired or reached its maximum usage limit.');
         }
 
-        // Start quiz automatically for guest users (Middleware handles incrementing used_count and session record)
         return redirect()->route('shared.quiz.start', ['token' => $token]);
     }
 
@@ -37,16 +34,12 @@ class SharedAccessController extends Controller
     {
         $link = SharedAccessLink::where('token', $token)->first();
 
-        // redirect back with error if link is invalid (middleware should have already blocked expired/overused links, but double check here)   
-
         if (!$link) {
             return redirect()->route('shared.access', ['token' => $token])->with('error', 'This access link has expired or reached its maximum usage limit.');
         }
 
-        // Use Laravel session ID to identify the guest attempt.
         $guestSessionId = Session::getId();
 
-        // Check if there's an existing active attempt
         $existingAttempt = QuizAttempt::where('guest_session_id', $guestSessionId)
             ->where('is_submitted', false)
             ->where('is_guest_attempt', true)
@@ -60,7 +53,6 @@ class SharedAccessController extends Controller
             ]);
         }
 
-        // Create new attempt
         $questionIds = Question::where('is_active', true)
             ->inRandomOrder()
             ->limit(20)
@@ -84,7 +76,6 @@ class SharedAccessController extends Controller
             'guest_session_id' => $guestSessionId,
         ]);
 
-        // Link to session record for stats
         SharedAccessSession::where('session_id', $guestSessionId)
             ->where('shared_access_link_id', $link->id)
             ->whereNull('quiz_attempt_id')
@@ -107,9 +98,6 @@ class SharedAccessController extends Controller
 
         $this->ensureAttemptMatchesToken($link, $attempt);
 
-
-
-        // If already submitted, redirect to results
         if ($attempt->is_submitted) {
             return redirect()->route('shared.quiz.results', [
                 'token' => $token,
@@ -117,7 +105,6 @@ class SharedAccessController extends Controller
             ]);
         }
 
-        // Auto-submit if expired
         if ($attempt->isExpired()) {
             $this->processSubmission($attempt, []);
             return redirect()->route('shared.quiz.results', [
@@ -126,7 +113,6 @@ class SharedAccessController extends Controller
             ]);
         }
 
-        // Get questions with their options
         $questions = Question::with(['options', 'category'])
             ->whereIn('id', $attempt->question_ids)
             ->get()
@@ -140,10 +126,10 @@ class SharedAccessController extends Controller
                 'options' => $q->options->shuffle()->values()->map(fn($o) => [
                     'id' => $o->id,
                     'option_text' => $o->option_text,
+                    'image_path' => $o->image_path,
                 ]),
             ]);
 
-        // Get saved answers
         $savedAnswers = Answer::where('quiz_attempt_id', $attempt->id)
             ->pluck('selected_option_id', 'question_id')
             ->toArray();
@@ -159,8 +145,6 @@ class SharedAccessController extends Controller
             'savedAnswers' => $savedAnswers,
         ]);
     }
-
-
 
     public function saveAnswer(Request $request, string $token, QuizAttempt $attempt)
     {
@@ -192,12 +176,10 @@ class SharedAccessController extends Controller
         $questionId = (int) $validated['question_id'];
         $optionId = (int) $validated['option_id'];
 
-        // Verify question belongs to this attempt
         if (!in_array($questionId, $attempt->question_ids ?? [])) {
             return redirect()->back()->with('error', 'Question not in this quiz');
         }
 
-        // Verify option belongs to question
         $option = Option::where('id', $optionId)
             ->where('question_id', $questionId)
             ->first();
@@ -206,7 +188,6 @@ class SharedAccessController extends Controller
             return redirect()->back()->with('error', 'Invalid option');
         }
 
-        // Save or update answer
         Answer::updateOrCreate(
             [
                 'quiz_attempt_id' => $attempt->id,
@@ -218,7 +199,6 @@ class SharedAccessController extends Controller
             ]
         );
 
-        // Return back with success flash (but don't show toast for every answer)
         return redirect()->back();
     }
 
@@ -231,8 +211,6 @@ class SharedAccessController extends Controller
         }
 
         $this->ensureAttemptMatchesToken($link, $attempt);
-
-
 
         if ($attempt->is_submitted) {
             return redirect()->route('shared.quiz.results', [
@@ -259,8 +237,6 @@ class SharedAccessController extends Controller
 
         $this->ensureAttemptMatchesToken($link, $attempt);
 
-
-
         $answers = Answer::with(['question.options', 'question.category', 'selectedOption'])
             ->where('quiz_attempt_id', $attempt->id)
             ->get()
@@ -272,10 +248,13 @@ class SharedAccessController extends Controller
                 'explanation' => $a->question->explanation,
                 'is_correct' => $a->is_correct,
                 'selected_option' => $a->selectedOption?->option_text,
+                'selected_option_image' => $a->selectedOption?->image_path,
                 'correct_option' => $a->question->options->firstWhere('is_correct', true)?->option_text,
+                'correct_option_image' => $a->question->options->firstWhere('is_correct', true)?->image_path,
                 'all_options' => $a->question->options->map(fn($o) => [
                     'id' => $o->id,
                     'text' => $o->option_text,
+                    'image_path' => $o->image_path,
                     'is_correct' => $o->is_correct,
                 ]),
             ]);
@@ -301,14 +280,13 @@ class SharedAccessController extends Controller
             ->exists();
 
         if (!$exists) {
-            redirect()->route('shared.access', ['token' => $link->token])->with('error', 'This access link has expired or reached its maximum usage limit.'); // Double check token validity before redirecting
+            redirect()->route('shared.access', ['token' => $link->token])->with('error', 'This access link has expired or reached its maximum usage limit.');
         }
     }
 
     private function processSubmission(QuizAttempt $attempt, array $answers): void
     {
         DB::transaction(function () use ($attempt, $answers) {
-            // Process answers from the request
             foreach ($answers as $questionId => $optionId) {
                 $questionId = (int) $questionId;
                 $optionId = (int) $optionId;
@@ -317,12 +295,10 @@ class SharedAccessController extends Controller
                     continue;
                 }
 
-                // Verify question belongs to attempt
                 if (!in_array($questionId, $attempt->question_ids ?? [])) {
                     continue;
                 }
 
-                // Verify option belongs to question
                 $option = Option::where('id', $optionId)
                     ->where('question_id', $questionId)
                     ->first();
@@ -343,7 +319,6 @@ class SharedAccessController extends Controller
                 );
             }
 
-            // Calculate score
             $correct = Answer::where('quiz_attempt_id', $attempt->id)
                 ->where('is_correct', true)
                 ->count();
@@ -351,14 +326,12 @@ class SharedAccessController extends Controller
             $total = $attempt->total_questions;
             $score = $total > 0 ? (int) round(($correct / $total) * 100) : 0;
 
-            // update link uasge count if it's a guest attempt
             if ($attempt->is_guest_attempt) {
                 SharedAccessLink::whereHas('sessions', function ($query) use ($attempt) {
                     $query->where('quiz_attempt_id', $attempt->id);
                 })->increment('used_count');
             }
 
-            // Update attempt
             $attempt->update([
                 'is_submitted' => true,
                 'is_timed_out' => $attempt->isExpired(),
