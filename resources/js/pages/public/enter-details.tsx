@@ -147,15 +147,7 @@ export default function EnterDetails({ token, link }: Props) {
                             </div>
 
                             <div className="space-y-1.5">
-                                <Progress
-                                    value={progress}
-                                    className="h-2"
-                                    indicatorClassName={cn(
-                                        remainingAttempts > 0
-                                            ? 'bg-primary'
-                                            : 'bg-orange-500',
-                                    )}
-                                />
+                                <Progress value={progress} className="h-2" />
                                 <p className="text-center text-xs text-muted-foreground">
                                     {remainingAttempts} attempt
                                     {remainingAttempts !== 1 ? 's' : ''}{' '}

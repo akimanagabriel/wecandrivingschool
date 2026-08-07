@@ -118,7 +118,7 @@ const galleryCars = [
 export default function Welcome({
     canRegister = true,
     plans = [],
-    publicQuizUrl = null,
+    publicQuizUrl = '',
 }: WelcomeProps) {
     const { auth } = usePage().props as { auth: { user?: unknown } };
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -528,9 +528,6 @@ export default function Welcome({
                                 <div className="relative z-10 flex h-full items-center">
                                     <div className="mx-auto w-full max-w-7xl px-6">
                                         <div className="max-w-2xl">
-                                            <div className="mb-4 inline-block rounded-full bg-[#F5C518]/20 px-4 py-1.5 text-sm font-semibold text-[#F5C518] backdrop-blur-sm">
-                                                {index + 1} / {carImages.length}
-                                            </div>
                                             <h1 className="mb-4 text-4xl font-extrabold tracking-tight text-white md:text-5xl lg:text-6xl">
                                                 {image.title}
                                             </h1>
@@ -549,7 +546,7 @@ export default function Welcome({
                                                 ) : publicQuizUrl ? (
                                                     <a
                                                         href={publicQuizUrl}
-                                                        className="pulse-gold gold-gradient inline-flex items-center gap-2 rounded-xl px-8 py-4 text-base font-bold text-[#1B2A4A] shadow-lg transition hover:opacity-90 hover:scale-105"
+                                                        className="pulse-gold gold-gradient inline-flex items-center gap-2 rounded-xl px-8 py-4 text-base font-bold text-[#1B2A4A] shadow-lg transition hover:scale-105 hover:opacity-90"
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                     >
@@ -560,7 +557,8 @@ export default function Welcome({
                                                     <Link href={register()}>
                                                         <button className="pulse-gold gold-gradient flex items-center gap-2 rounded-xl px-8 py-4 text-base font-bold text-[#1B2A4A] shadow-lg transition hover:opacity-90">
                                                             <Play className="h-5 w-5" />{' '}
-                                                            Start Practicing Free
+                                                            Start Practicing
+                                                            Free
                                                         </button>
                                                     </Link>
                                                 )}
