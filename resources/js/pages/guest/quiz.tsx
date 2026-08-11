@@ -1,3 +1,4 @@
+// resources/js/pages/public/quiz.tsx
 import { useCallback, useEffect, useRef, useState, memo } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { toast } from 'sonner';
@@ -9,6 +10,7 @@ import {
     Clock,
     LayoutGrid,
     X,
+    User,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -31,33 +33,38 @@ interface Props {
     token: string;
     attempt: {
         id: number;
-        remainingSeconds: number;
         totalQuestions: number;
+        userName: string;
+        startedAt: string;
+        attemptNumber: number;
+        maxAttempts: number;
+        passingScore: number;
+        remainingSeconds?: number;
     };
     questions: Question[];
     savedAnswers: Record<number, number>;
+    remainingAttempts: number;
+    maxAttempts: number;
+    remainingIpAttempts: number;
+    maxAttemptsPerIp: number;
 }
 
 // ── Helper function to get correct image URL ──────────────────────────────
 const getImageUrl = (path: string | null): string | null => {
     if (!path) return null;
 
-    // If it's already a full URL
     if (path.startsWith('http://') || path.startsWith('https://')) {
         return path;
     }
 
-    // If it starts with 'storage/', add leading slash
     if (path.startsWith('storage/')) {
         return '/' + path;
     }
 
-    // If it starts with '/', return as is
     if (path.startsWith('/')) {
         return path;
     }
 
-    // Otherwise, prepend /storage/
     return '/storage/' + path;
 };
 
@@ -124,11 +131,15 @@ const CountdownTimer = memo(
 );
 CountdownTimer.displayName = 'CountdownTimer';
 
-export default function GuestQuiz({
+export default function PublicQuiz({
     token,
     attempt,
     questions,
     savedAnswers,
+    remainingAttempts,
+    maxAttempts,
+    remainingIpAttempts,
+    maxAttemptsPerIp,
 }: Props) {
     const [answers, setAnswers] = useState<Record<number, number>>(
         savedAnswers ?? {},
@@ -139,13 +150,22 @@ export default function GuestQuiz({
     const [showMobileGrid, setShowMobileGrid] = useState(false);
     const debounce = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
+    const totalQuestions = questions.length;
+    const current = questions[currentIndex];
+    const answeredCount = Object.keys(answers).length;
+    const progress =
+        totalQuestions > 0
+            ? Math.round((answeredCount / totalQuestions) * 100)
+            : 0;
+    const labels = ['A', 'B', 'C', 'D', 'E', 'F'];
+
     // ── Save answer ───────────────────────────────────────────────────────────
     const saveAnswer = useCallback(
         (questionId: number, optionId: number) => {
             clearTimeout(debounce.current[questionId]);
             debounce.current[questionId] = setTimeout(() => {
                 router.post(
-                    `/shared/quiz/${token}/save-answer/${attempt.id}`,
+                    `/public/quiz/${token}/take/${attempt.id}/save`,
                     { question_id: questionId, option_id: optionId },
                     {
                         preserveScroll: true,
@@ -172,7 +192,7 @@ export default function GuestQuiz({
         if (isSubmitting) return;
         setIsSubmitting(true);
         router.post(
-            `/shared/quiz/${token}/submit/${attempt.id}`,
+            `/public/quiz/${token}/take/${attempt.id}/submit`,
             { answers },
             {
                 preserveState: false,
@@ -197,9 +217,7 @@ export default function GuestQuiz({
             if (e.key === 'ArrowLeft') {
                 setCurrentIndex((i) => Math.max(0, i - 1));
             } else if (e.key === 'ArrowRight') {
-                setCurrentIndex((i) =>
-                    Math.min(attempt.totalQuestions - 1, i + 1),
-                );
+                setCurrentIndex((i) => Math.min(totalQuestions - 1, i + 1));
             } else if (
                 ['1', '2', '3', '4', 'a', 'b', 'c', 'd'].includes(
                     e.key.toLowerCase(),
@@ -216,9 +234,8 @@ export default function GuestQuiz({
                     d: 3,
                 };
                 const optIndex = map[e.key.toLowerCase()];
-                const targetOption = questions[currentIndex]?.options[optIndex];
-                if (targetOption)
-                    selectAnswer(questions[currentIndex].id, targetOption.id);
+                const targetOption = current?.options[optIndex];
+                if (targetOption) selectAnswer(current.id, targetOption.id);
             }
         };
         window.addEventListener('keydown', handleKeyDown);
@@ -229,15 +246,11 @@ export default function GuestQuiz({
         showConfirm,
         showMobileGrid,
         selectAnswer,
-        attempt.totalQuestions,
+        totalQuestions,
+        current,
     ]);
 
-    // ── Render ────────────────────────────────────────────────────────────────
-    const current = questions[currentIndex];
-    const answered = Object.keys(answers).length;
-    const progress = Math.round((answered / attempt.totalQuestions) * 100);
-    const labels = ['A', 'B', 'C', 'D', 'E', 'F'];
-
+    // ── Render Grid ──────────────────────────────────────────────────────────
     const renderGrid = () => (
         <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-6 lg:grid-cols-5">
             {questions.map((q, i) => {
@@ -278,14 +291,14 @@ export default function GuestQuiz({
 
     return (
         <>
-            <Head title="Theory Test Practice" />
+            <Head title="Practice Quiz - WeCanDrivingSchool" />
             <div className="flex min-h-screen flex-col bg-background md:bg-muted/20">
                 {/* ── Header ── */}
                 <header className="sticky top-0 z-40 border-b bg-background/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/60">
                     <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
                         <div className="flex items-center gap-3">
                             <span className="hidden text-lg font-semibold text-primary md:block">
-                                Theory Test
+                                Practice Quiz
                             </span>
                             <span className="hidden text-muted-foreground md:block">
                                 ·
@@ -293,37 +306,48 @@ export default function GuestQuiz({
                             <div className="flex flex-col">
                                 <span className="text-sm font-medium">
                                     Question {currentIndex + 1} of{' '}
-                                    {attempt.totalQuestions}
+                                    {totalQuestions}
                                 </span>
                                 <span className="text-xs text-muted-foreground md:hidden">
-                                    {answered} completed
+                                    {answeredCount} completed
                                 </span>
                             </div>
+                            <span className="hidden text-xs text-muted-foreground md:inline-block">
+                                · {attempt.userName}
+                            </span>
+                            <span className="hidden text-xs text-muted-foreground md:inline-block">
+                                · Attempt {attempt.attemptNumber} of{' '}
+                                {attempt.maxAttempts}
+                            </span>
                         </div>
 
-                        <CountdownTimer
-                            initialSeconds={attempt.remainingSeconds}
-                            onExpire={handleAutoSubmit}
-                        />
+                        <div className="flex items-center gap-3">
+                            <CountdownTimer
+                                initialSeconds={
+                                    attempt.remainingSeconds || 20 * 60
+                                }
+                                onExpire={handleAutoSubmit}
+                            />
 
-                        <Button
-                            size="sm"
-                            className="hidden shadow-sm transition hover:shadow md:flex"
-                            onClick={() => setShowConfirm(true)}
-                            disabled={isSubmitting}
-                        >
-                            <CheckSquare className="mr-2 h-4 w-4" />
-                            {isSubmitting ? 'Submitting…' : 'Submit Quiz'}
-                        </Button>
+                            <Button
+                                size="sm"
+                                className="hidden shadow-sm transition hover:shadow md:flex"
+                                onClick={() => setShowConfirm(true)}
+                                disabled={isSubmitting}
+                            >
+                                <CheckSquare className="mr-2 h-4 w-4" />
+                                {isSubmitting ? 'Submitting…' : 'Submit Quiz'}
+                            </Button>
 
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            className="flex border-primary/20 text-primary hover:bg-primary/10 md:hidden"
-                            onClick={() => setShowMobileGrid(true)}
-                        >
-                            <LayoutGrid className="h-5 w-5" />
-                        </Button>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="flex border-primary/20 text-primary hover:bg-primary/10 md:hidden"
+                                onClick={() => setShowMobileGrid(true)}
+                            >
+                                <LayoutGrid className="h-5 w-5" />
+                            </Button>
+                        </div>
                     </div>
 
                     {/* Progress bar */}
@@ -354,6 +378,15 @@ export default function GuestQuiz({
                                     >
                                         {current.category}
                                     </Badge>
+                                    {!!answers[current.id] && (
+                                        <Badge
+                                            variant="success"
+                                            className="gap-1"
+                                        >
+                                            <CheckSquare className="h-3 w-3" />
+                                            Answered
+                                        </Badge>
+                                    )}
                                 </div>
 
                                 <h2 className="mb-8 text-xl leading-relaxed font-bold text-foreground md:text-2xl">
@@ -379,7 +412,6 @@ export default function GuestQuiz({
                                     {current.options.map((opt, i) => {
                                         const selected =
                                             answers[current.id] === opt.id;
-
                                         const optionImageUrl = getImageUrl(
                                             opt.image_path,
                                         );
@@ -496,15 +528,10 @@ export default function GuestQuiz({
                                 className="h-12 px-6 shadow-sm disabled:opacity-50"
                                 onClick={() =>
                                     setCurrentIndex((i) =>
-                                        Math.min(
-                                            attempt.totalQuestions - 1,
-                                            i + 1,
-                                        ),
+                                        Math.min(totalQuestions - 1, i + 1),
                                     )
                                 }
-                                disabled={
-                                    currentIndex === attempt.totalQuestions - 1
-                                }
+                                disabled={currentIndex === totalQuestions - 1}
                             >
                                 Next <ChevronRight className="ml-2 h-5 w-5" />
                             </Button>
@@ -529,7 +556,7 @@ export default function GuestQuiz({
                                             <span>Answered</span>
                                         </div>
                                         <span className="font-semibold">
-                                            {answered}
+                                            {answeredCount}
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-between">
@@ -538,7 +565,16 @@ export default function GuestQuiz({
                                             <span>Unanswered</span>
                                         </div>
                                         <span className="font-semibold">
-                                            {attempt.totalQuestions - answered}
+                                            {totalQuestions - answeredCount}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between border-t border-muted/50 pt-2 text-xs">
+                                        <span className="text-muted-foreground">
+                                            Attempts left
+                                        </span>
+                                        <span className="font-semibold">
+                                            {remainingIpAttempts} /{' '}
+                                            {maxAttemptsPerIp}
                                         </span>
                                     </div>
                                 </div>
@@ -598,12 +634,12 @@ export default function GuestQuiz({
                             <div className="flex items-center justify-around rounded-xl bg-muted/50 px-4 py-3 text-sm font-medium">
                                 <div className="flex items-center gap-2">
                                     <span className="h-3 w-3 rounded-full bg-primary shadow-sm" />
-                                    {answered} Answered
+                                    {answeredCount} Answered
                                 </div>
                                 <div className="h-6 w-px bg-border" />
                                 <div className="flex items-center gap-2">
                                     <span className="h-3 w-3 rounded-full border border-muted-foreground/30 bg-muted shadow-sm" />
-                                    {attempt.totalQuestions - answered} Left
+                                    {totalQuestions - answeredCount} Left
                                 </div>
                             </div>
                         </div>
@@ -628,27 +664,39 @@ export default function GuestQuiz({
                                     <p className="text-[15px] leading-relaxed text-muted-foreground">
                                         You have answered{' '}
                                         <strong className="text-foreground">
-                                            {answered}
+                                            {answeredCount}
                                         </strong>{' '}
                                         of{' '}
                                         <strong className="text-foreground">
-                                            {attempt.totalQuestions}
+                                            {totalQuestions}
                                         </strong>{' '}
                                         questions.
                                     </p>
-                                    {answered < attempt.totalQuestions && (
+                                    {answeredCount < totalQuestions && (
                                         <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 dark:border-yellow-900/50 dark:bg-yellow-900/20">
                                             <p className="flex items-start gap-2 text-sm font-medium text-yellow-800 dark:text-yellow-400">
                                                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                                                 <span>
-                                                    {attempt.totalQuestions -
-                                                        answered}{' '}
+                                                    {totalQuestions -
+                                                        answeredCount}{' '}
                                                     unanswered questions will be
                                                     marked incorrect.
                                                 </span>
                                             </p>
                                         </div>
                                     )}
+                                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900/50 dark:bg-blue-900/20">
+                                        <p className="flex items-start gap-2 text-sm font-medium text-blue-800 dark:text-blue-400">
+                                            <span>
+                                                You have {remainingIpAttempts}{' '}
+                                                attempt
+                                                {remainingIpAttempts !== 1
+                                                    ? 's'
+                                                    : ''}{' '}
+                                                remaining.
+                                            </span>
+                                        </p>
+                                    </div>
                                 </div>
 
                                 <div className="flex gap-3">

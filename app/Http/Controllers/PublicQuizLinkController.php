@@ -35,6 +35,9 @@ class PublicQuizLinkController extends Controller
     /** Total number of questions per quiz */
     const TOTAL_QUESTIONS = 20;
 
+    /** Quiz duration in minutes */
+    const QUIZ_DURATION_MINUTES = 20;
+
     // ─── IP Detection ────────────────────────────────────────────────────────
 
     /**
@@ -46,7 +49,6 @@ class PublicQuizLinkController extends Controller
      */
     private function getClientIp(Request $request): string
     {
-        // List of headers that may contain the real client IP
         $headers = [
             'HTTP_CLIENT_IP',
             'HTTP_X_FORWARDED_FOR',
@@ -100,23 +102,11 @@ class PublicQuizLinkController extends Controller
 
     // ─── Public Access ────────────────────────────────────────────────────────
 
-    /**
-     * Main entry point for public quiz access
-     * Validates the link and determines what to show the user
-     * 
-     * @param Request $request The HTTP request
-     * @param string $token The unique link token
-     * @return \Inertia\Response|\Illuminate\Http\RedirectResponse
-     */
     public function access(Request $request, string $token)
     {
-        // Get the client's real IP address
         $ip = $this->getClientIp($request);
-
-        // Validate the link and check user eligibility
         $result = $this->validateLink($token, $ip);
 
-        // ─── Link is invalid - show expired page ───
         if (!$result['valid']) {
             return Inertia::render('public/link-expired', [
                 'token' => $token,
@@ -136,7 +126,6 @@ class PublicQuizLinkController extends Controller
             ]);
         }
 
-        // ─── User has an existing incomplete attempt - resume it ───
         if (isset($result['existing_attempt']) && !$result['existing_attempt']->is_completed) {
             return redirect()->route('public.quiz.take', [
                 'token' => $token,
@@ -144,12 +133,10 @@ class PublicQuizLinkController extends Controller
             ]);
         }
 
-        // ─── User has completed attempts but still has remaining attempts ───
         if (isset($result['has_completed_attempts']) && $result['has_completed_attempts']) {
             try {
                 $attempt = $this->createFreshAttempt($result['link'], $ip, $result['user_name'] ?? 'User');
                 $this->initializeQuiz($attempt);
-
                 return redirect()->route('public.quiz.take', [
                     'token' => $token,
                     'attempt' => $attempt->id
@@ -159,7 +146,6 @@ class PublicQuizLinkController extends Controller
             }
         }
 
-        // ─── New user - show name form ───
         if (isset($result['needs_name']) && $result['needs_name']) {
             return Inertia::render('public/enter-details', [
                 'token' => $token,
@@ -176,17 +162,8 @@ class PublicQuizLinkController extends Controller
         return back()->with('error', 'Unable to process your request.');
     }
 
-    /**
-     * Validate the link and check user's eligibility
-     * Determines if user can take the quiz based on their attempt history
-     * 
-     * @param string $token The link token
-     * @param string $ip The client IP address
-     * @return array Validation result with link data and user status
-     */
     private function validateLink(string $token, string $ip): array
     {
-        // ─── Find the link ───
         $link = PublicQuizLink::where('token', $token)->first();
 
         if (!$link) {
@@ -206,7 +183,6 @@ class PublicQuizLinkController extends Controller
             ];
         }
 
-        // ─── Check for incomplete attempt first ───
         $incompleteAttempt = $link->getIncompleteAttempt($ip);
         if ($incompleteAttempt) {
             return [
@@ -220,10 +196,8 @@ class PublicQuizLinkController extends Controller
             ];
         }
 
-        // ─── Get completed attempts count ───
         $completedCount = $link->getCompletedAttemptsCount($ip);
 
-        // ─── Check if user has reached max attempts ───
         if ($completedCount >= $link->max_attempts_per_ip) {
             return [
                 'valid' => false,
@@ -236,7 +210,6 @@ class PublicQuizLinkController extends Controller
             ];
         }
 
-        // ─── User has completed attempts but still has remaining attempts ───
         if ($completedCount > 0) {
             $lastAttempt = $link->attempts()
                 ->where('ip_address', $ip)
@@ -257,7 +230,6 @@ class PublicQuizLinkController extends Controller
             ];
         }
 
-        // ─── New user - no attempts yet ───
         return [
             'valid' => true,
             'link' => $link,
@@ -270,34 +242,21 @@ class PublicQuizLinkController extends Controller
         ];
     }
 
-    /**
-     * Create a fresh attempt for returning users
-     * Copies user details from their previous attempt
-     * 
-     * @param PublicQuizLink $link The quiz link
-     * @param string $ip The client IP
-     * @param string $userName The user's name
-     * @return PublicQuizAttempt The new attempt
-     */
     private function createFreshAttempt(PublicQuizLink $link, string $ip, string $userName): PublicQuizAttempt
     {
-        // Delete any existing incomplete attempt
         $existingAttempt = $link->getIncompleteAttempt($ip);
         if ($existingAttempt) {
             $existingAttempt->delete();
         }
 
-        // Get the last completed attempt to copy user details
         $lastAttempt = $link->attempts()
             ->where('ip_address', $ip)
             ->where('is_completed', true)
             ->latest()
             ->first();
 
-        // Get completed attempts count for attempt number
         $completedCount = $link->getCompletedAttemptsCount($ip);
 
-        // Create fresh attempt
         return PublicQuizAttempt::create([
             'public_quiz_link_id' => $link->id,
             'ip_address' => $ip,
@@ -307,6 +266,7 @@ class PublicQuizLinkController extends Controller
             'user_email' => $lastAttempt?->user_email ?? null,
             'attempt_number' => $completedCount + 1,
             'started_at' => now(),
+            'expires_at' => now()->addMinutes(self::QUIZ_DURATION_MINUTES),
             'total_questions' => self::TOTAL_QUESTIONS,
             'is_completed' => false,
         ]);
@@ -314,17 +274,8 @@ class PublicQuizLinkController extends Controller
 
     // ─── User Details ─────────────────────────────────────────────────────────
 
-    /**
-     * Store user details and start the quiz
-     * Called when a new user submits the name form
-     * 
-     * @param Request $request The HTTP request
-     * @param string $token The link token
-     * @return \Illuminate\Http\RedirectResponse
-     */
     public function storeDetails(Request $request, string $token)
     {
-        // Validate user input
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'nullable|email|max:255',
@@ -333,24 +284,17 @@ class PublicQuizLinkController extends Controller
         $link = PublicQuizLink::where('token', $token)->firstOrFail();
         $ip = $this->getClientIp($request);
 
-        // Check if user has already used all attempts
         if (!$link->canIpAttempt($ip)) {
             return back()->with('error', "You have already used all {$link->max_attempts_per_ip} attempts.");
         }
 
         try {
-            // Create or update the attempt with user details
             $attempt = $this->createOrUpdateAttempt($link, $ip, $validated);
-
-            // Initialize quiz with random questions
             $this->initializeQuiz($attempt);
-
-            // Redirect to the quiz take page
             return redirect()->route('public.quiz.take', [
                 'token' => $token,
                 'attempt' => $attempt->id
             ]);
-
         } catch (\Exception $e) {
             \Log::error('Quiz initialization failed:', [
                 'error' => $e->getMessage(),
@@ -361,21 +305,11 @@ class PublicQuizLinkController extends Controller
         }
     }
 
-    /**
-     * Create or update a quiz attempt with user details
-     * 
-     * @param PublicQuizLink $link The quiz link
-     * @param string $ip The client IP
-     * @param array $userData The user's name and email
-     * @return PublicQuizAttempt The attempt
-     */
     private function createOrUpdateAttempt(PublicQuizLink $link, string $ip, array $userData): PublicQuizAttempt
     {
-        // Check for existing incomplete attempt
         $attempt = $link->getIncompleteAttempt($ip);
 
         if ($attempt) {
-            // Update existing attempt with user details
             $attempt->update([
                 'user_name' => $userData['name'],
                 'user_email' => $userData['email'] ?? null,
@@ -383,10 +317,8 @@ class PublicQuizLinkController extends Controller
             return $attempt;
         }
 
-        // Get completed attempts count for attempt number
         $completedCount = $link->getCompletedAttemptsCount($ip);
 
-        // Create new attempt
         return PublicQuizAttempt::create([
             'public_quiz_link_id' => $link->id,
             'ip_address' => $ip,
@@ -396,6 +328,7 @@ class PublicQuizLinkController extends Controller
             'user_email' => $userData['email'] ?? null,
             'attempt_number' => $completedCount + 1,
             'started_at' => now(),
+            'expires_at' => now()->addMinutes(self::QUIZ_DURATION_MINUTES),
             'total_questions' => self::TOTAL_QUESTIONS,
             'is_completed' => false,
         ]);
@@ -403,14 +336,11 @@ class PublicQuizLinkController extends Controller
 
     /**
      * Initialize a quiz with random questions
-     * Selects 20 random active questions and stores them in the attempt
-     * 
-     * @param PublicQuizAttempt $attempt The quiz attempt
-     * @throws \Exception If not enough questions are available
+     * This method should be called only once when the quiz is first created.
+     * It sets the question IDs and the expiry timestamp.
      */
     private function initializeQuiz(PublicQuizAttempt $attempt): void
     {
-        // Get 20 random active questions
         $questions = Question::where('is_active', true)
             ->inRandomOrder()
             ->limit(self::TOTAL_QUESTIONS)
@@ -420,16 +350,15 @@ class PublicQuizLinkController extends Controller
             throw new \Exception('Not enough questions available.');
         }
 
-        // Store question IDs in the attempt
         $questionIds = $questions->pluck('id')->toArray();
 
         $attempt->update([
             'question_ids' => $questionIds,
             'total_questions' => $questions->count(),
             'started_at' => now(),
+            'expires_at' => now()->addMinutes(self::QUIZ_DURATION_MINUTES),
         ]);
 
-        // Increment the link's total usage counter
         $link = $attempt->link;
         $link->increment('total_attempts_all_users');
         $link->save();
@@ -437,27 +366,17 @@ class PublicQuizLinkController extends Controller
 
     // ─── Quiz Taking ──────────────────────────────────────────────────────────
 
-    /**
-     * Take the quiz
-     * Displays the quiz page with all questions
-     * 
-     * @param Request $request The HTTP request
-     * @param string $token The link token
-     * @param int $attemptId The attempt ID
-     * @return \Inertia\Response|\Illuminate\Http\RedirectResponse
-     */
     public function takeQuiz(Request $request, string $token, int $attemptId)
     {
         $link = PublicQuizLink::where('token', $token)->firstOrFail();
         $attempt = PublicQuizAttempt::findOrFail($attemptId);
         $ip = $this->getClientIp($request);
 
-        // Verify ownership - ensure this attempt belongs to this IP
+        // Verify ownership
         if ($attempt->public_quiz_link_id !== $link->id || $attempt->ip_address !== $ip) {
             abort(403, 'Unauthorized access to this quiz.');
         }
 
-        // If completed, redirect to results
         if ($attempt->is_completed) {
             return redirect()->route('public.quiz.results', [
                 'token' => $token,
@@ -465,7 +384,8 @@ class PublicQuizLinkController extends Controller
             ]);
         }
 
-        // If no questions, initialize
+        // ─── Only initialize if questions are not yet set ──────────────────
+        // This prevents resetting expires_at on every page refresh.
         if (empty($attempt->question_ids)) {
             try {
                 $this->initializeQuiz($attempt);
@@ -473,16 +393,26 @@ class PublicQuizLinkController extends Controller
             } catch (\Exception $e) {
                 return back()->with('error', $e->getMessage());
             }
+        } else {
+            // If questions exist but expires_at is missing (edge case), set it now.
+            if (empty($attempt->expires_at)) {
+                $attempt->update(['expires_at' => now()->addMinutes(self::QUIZ_DURATION_MINUTES)]);
+                $attempt->refresh();
+            }
         }
 
-        // Get formatted questions for display
+        // ─── Get formatted questions ──────────────────────────────────────
         $questions = $this->getQuizQuestions($attempt);
 
-        // Get remaining attempts for this IP
+        // ─── Get remaining attempts for this IP ──────────────────────────
         $completedCount = $link->getCompletedAttemptsCount($ip);
         $remainingIpAttempts = max(0, $link->max_attempts_per_ip - $completedCount);
 
-        // Render the quiz page
+        // ─── Calculate remaining seconds using expires_at ────────────────
+        $remainingSeconds = $attempt->expires_at
+            ? max(0, now()->diffInSeconds($attempt->expires_at, false))
+            : self::QUIZ_DURATION_MINUTES * 60;
+
         return Inertia::render('public/quiz', [
             'token' => $token,
             'attempt' => [
@@ -493,6 +423,7 @@ class PublicQuizLinkController extends Controller
                 'attemptNumber' => $attempt->attempt_number,
                 'maxAttempts' => $link->max_attempts_per_ip,
                 'passingScore' => self::PASSING_SCORE,
+                'remainingSeconds' => $remainingSeconds,
             ],
             'questions' => $questions,
             'savedAnswers' => $attempt->answers ?? [],
@@ -502,16 +433,9 @@ class PublicQuizLinkController extends Controller
         ]);
     }
 
-    /**
-     * Get formatted questions for the quiz
-     * 
-     * @param PublicQuizAttempt $attempt The quiz attempt
-     * @return array Formatted questions with options
-     */
     private function getQuizQuestions(PublicQuizAttempt $attempt): array
     {
         $questionIds = $attempt->question_ids ?? [];
-
         if (empty($questionIds)) {
             return [];
         }
@@ -539,18 +463,8 @@ class PublicQuizLinkController extends Controller
 
     // ─── Save Answer ──────────────────────────────────────────────────────────
 
-    /**
-     * Save a single answer
-     * Called via AJAX when user selects an option
-     * 
-     * @param Request $request The HTTP request
-     * @param string $token The link token
-     * @param int $attemptId The attempt ID
-     * @return \Illuminate\Http\JsonResponse
-     */
     public function saveAnswer(Request $request, string $token, int $attemptId)
     {
-        // Validate the request
         $validated = $request->validate([
             'question_id' => 'required|integer',
             'option_id' => 'required|integer',
@@ -559,45 +473,32 @@ class PublicQuizLinkController extends Controller
         $attempt = PublicQuizAttempt::findOrFail($attemptId);
         $ip = $this->getClientIp($request);
 
-        // Verify the attempt belongs to this IP
         if ($attempt->ip_address !== $ip) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        // Check if quiz is already completed
         if ($attempt->is_completed) {
             return response()->json(['error' => 'Quiz already completed'], 422);
         }
 
-        // Save the answer
         $answers = $attempt->answers ?? [];
         $answers[$validated['question_id']] = $validated['option_id'];
         $attempt->update(['answers' => $answers]);
 
+        return response()->json(['success' => true]);
     }
 
     // ─── Submit Quiz ──────────────────────────────────────────────────────────
 
-    /**
-     * Submit the quiz
-     * Grades the quiz and redirects to results
-     * 
-     * @param Request $request The HTTP request
-     * @param string $token The link token
-     * @param int $attemptId The attempt ID
-     * @return \Illuminate\Http\RedirectResponse
-     */
     public function submitQuiz(Request $request, string $token, int $attemptId)
     {
         $attempt = PublicQuizAttempt::findOrFail($attemptId);
         $ip = $this->getClientIp($request);
 
-        // Verify ownership
         if ($attempt->ip_address !== $ip) {
             abort(403, 'Unauthorized access.');
         }
 
-        // If already completed, redirect to results
         if ($attempt->is_completed) {
             return redirect()->route('public.quiz.results', [
                 'token' => $token,
@@ -605,52 +506,35 @@ class PublicQuizLinkController extends Controller
             ]);
         }
 
-        // Get submitted answers
         $submittedAnswers = $request->input('answers', []);
-
         if (empty($submittedAnswers)) {
             return back()->with('error', 'No answers to submit.');
         }
 
-        // Grade the quiz
         $this->gradeQuiz($attempt, $submittedAnswers);
-
-        // Redirect to results page
         return redirect()->route('public.quiz.results', [
             'token' => $token,
             'attempt' => $attempt->id
         ]);
     }
 
-    /**
-     * Grade the quiz and calculate results
-     * Passing score is 12/20 (60%)
-     * 
-     * @param PublicQuizAttempt $attempt The quiz attempt
-     * @param array $submittedAnswers The user's answers
-     */
     private function gradeQuiz(PublicQuizAttempt $attempt, array $submittedAnswers): void
     {
         $questionIds = $attempt->question_ids ?? [];
         $correct = 0;
         $incorrect = 0;
 
-        // Grade each answer
         foreach ($submittedAnswers as $questionId => $optionId) {
-            // Skip invalid entries
             if (!is_numeric($questionId) || !is_numeric($optionId)) {
                 continue;
             }
-
             $questionId = (int) $questionId;
             $optionId = (int) $optionId;
 
-            // Skip if question not in this quiz
             if (!in_array($questionId, $questionIds)) {
                 continue;
             }
 
-            // Check if the answer is correct
             $question = Question::find($questionId);
             if (!$question)
                 continue;
@@ -666,14 +550,9 @@ class PublicQuizLinkController extends Controller
         }
 
         $total = $attempt->total_questions;
-
-        // Calculate score as percentage
         $score = $total > 0 ? round(($correct / $total) * 100) : 0;
-
-        // Pass if score >= 60% (12/20)
         $isPassed = $score >= self::PASSING_SCORE;
 
-        // Update the attempt with results
         $attempt->update([
             'score' => $score,
             'correct_answers' => $correct,
@@ -687,36 +566,22 @@ class PublicQuizLinkController extends Controller
 
     // ─── Results ──────────────────────────────────────────────────────────────
 
-    /**
-     * Show quiz results
-     * Displays score, correct/incorrect answers, and upgrade modal if needed
-     * 
-     * @param Request $request The HTTP request
-     * @param string $token The link token
-     * @param int $attemptId The attempt ID
-     * @return \Inertia\Response
-     */
     public function results(Request $request, string $token, int $attemptId)
     {
         $link = PublicQuizLink::where('token', $token)->firstOrFail();
         $attempt = PublicQuizAttempt::findOrFail($attemptId);
         $ip = $this->getClientIp($request);
 
-        // Verify ownership
         if ($attempt->public_quiz_link_id !== $link->id || $attempt->ip_address !== $ip) {
             abort(403, 'Unauthorized access.');
         }
 
-        // Get detailed results for each question
         $results = $this->getDetailedResults($attempt);
-
-        // Get all completed attempts for this IP
         $completedAttempts = $link->getCompletedAttemptsByIp($ip);
         $completedCount = $completedAttempts->count();
         $remainingIpAttempts = max(0, $link->max_attempts_per_ip - $completedCount);
         $hasRemainingAttempts = $remainingIpAttempts > 0;
 
-        // Build attempt history
         $attemptHistory = $completedAttempts->map(fn($a) => [
             'score' => $a->score,
             'is_passed' => $a->is_passed,
@@ -725,7 +590,6 @@ class PublicQuizLinkController extends Controller
             'total' => $a->total_questions,
         ]);
 
-        // Render results page
         return Inertia::render('public/results', [
             'token' => $token,
             'attempt' => [
@@ -758,12 +622,6 @@ class PublicQuizLinkController extends Controller
         ]);
     }
 
-    /**
-     * Get detailed results with correct/incorrect answers
-     * 
-     * @param PublicQuizAttempt $attempt The quiz attempt
-     * @return array Detailed results for each question
-     */
     private function getDetailedResults(PublicQuizAttempt $attempt): array
     {
         $questionIds = $attempt->question_ids ?? [];
@@ -806,12 +664,6 @@ class PublicQuizLinkController extends Controller
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
-    /**
-     * Get expiration message based on link state
-     * 
-     * @param PublicQuizLink $link The quiz link
-     * @return string The expiration message
-     */
     private function getExpirationMessage(PublicQuizLink $link): string
     {
         if (!$link->is_active) {
@@ -825,11 +677,6 @@ class PublicQuizLinkController extends Controller
         return 'This link is no longer valid.';
     }
 
-    /**
-     * Get pricing plans for the payment modal
-     * 
-     * @return array List of active pricing plans
-     */
     private function getPricingPlans(): array
     {
         return PricingPlan::active()
