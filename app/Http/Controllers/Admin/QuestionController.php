@@ -45,6 +45,8 @@ class QuestionController extends Controller
                 'is_active' => $q->is_active,
                 'options_count' => $q->options->count(),
                 'image_url' => $this->getImageUrl($q->image_path),
+                // ─── New: Count of options that have images ───
+                'options_with_images_count' => $q->options->filter(fn($o) => !empty($o->image_path))->count(),
                 'options' => $q->options->map(fn($o) => [
                     'id' => $o->id,
                     'option_text' => Str::limit($o->option_text, 50),
@@ -415,5 +417,20 @@ class QuestionController extends Controller
         ini_set('max_input_time', '300');
         ini_set('post_max_size', '100M');
         ini_set('upload_max_filesize', '100M');
+    }
+
+    /**
+     * Toggle the active status of a question.
+     */
+    public function toggleActive(Request $request, Question $question): RedirectResponse
+    {
+        $validated = $request->validate([
+            'is_active' => 'required|boolean',
+        ]);
+
+        $question->update(['is_active' => $validated['is_active']]);
+
+        // Optionally, you can return a JSON response if using Inertia with a toast
+        return back();
     }
 }

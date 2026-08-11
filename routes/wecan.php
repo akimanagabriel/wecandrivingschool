@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin;
 use App\Http\Controllers\Admin\PricingPlanController;
+use App\Http\Controllers\Admin\QuestionController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\QuizController;
 use App\Http\Controllers\StudentDashboardController;
@@ -45,6 +46,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     Route::put('questions/{question}', [Admin\QuestionController::class, 'update'])->name('questions.update');
     Route::post('questions/{question}', [Admin\QuestionController::class, 'update'])->name('questions.update.post');
     Route::delete('questions/{question}', [Admin\QuestionController::class, 'destroy'])->name('questions.destroy');
+    Route::patch('/questions/{question}/toggle-active', [QuestionController::class, 'toggleActive'])->name('questions.toggle-active');
 
     // Users
     Route::get('users', [Admin\UserController::class, 'index'])->name('users.index');

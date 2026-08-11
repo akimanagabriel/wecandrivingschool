@@ -1,6 +1,8 @@
+// resources/js/pages/admin/questions/index.tsx
 import { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { Pencil, Plus, Search, Trash2, ImageIcon } from 'lucide-react';
+import { toast } from 'sonner';
 import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -41,7 +43,7 @@ export default function QuestionsIndex({
     categories,
     filters,
 }: Props) {
-    const [search, setCategoryId] = useState(filters.search ?? '');
+    const [search, setSearch] = useState(filters.search ?? '');
     const [categoryId, setCategory] = useState(filters.category_id ?? '');
 
     const applyFilter = () =>
@@ -55,6 +57,25 @@ export default function QuestionsIndex({
         if (confirm('Delete this question? This cannot be undone.')) {
             router.delete(`/admin/questions/${id}`);
         }
+    };
+
+    const toggleActive = (id: number, currentStatus: boolean) => {
+        router.patch(
+            `/admin/questions/${id}/toggle-active`,
+            { is_active: !currentStatus },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                onSuccess: () => {
+                    toast.success(
+                        `Question ${!currentStatus ? 'activated' : 'deactivated'} successfully.`,
+                    );
+                },
+                onError: () => {
+                    toast.error('Failed to update status.');
+                },
+            },
+        );
     };
 
     return (
@@ -81,7 +102,7 @@ export default function QuestionsIndex({
                             className="pl-9"
                             placeholder="Search questions…"
                             value={search}
-                            onChange={(e) => setCategoryId(e.target.value)}
+                            onChange={(e) => setSearch(e.target.value)}
                             onKeyDown={(e) =>
                                 e.key === 'Enter' && applyFilter()
                             }
@@ -130,105 +151,134 @@ export default function QuestionsIndex({
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
-                                    {questions.data.map((q, i) => (
-                                        <tr
-                                            key={q.id}
-                                            className="hover:bg-muted/30"
-                                        >
-                                            <td className="px-4 py-3 text-muted-foreground">
-                                                {questions.from + i}
-                                            </td>
-                                            <td className="max-w-xs px-4 py-3">
-                                                <p className="line-clamp-2 font-medium">
-                                                    {q.question_text}
-                                                </p>
-                                                {/* Show question image if available */}
-                                                {q.image_path && (
-                                                    <div className="mt-1">
-                                                        <img
-                                                            src={`/storage/${q.image_path}`}
-                                                            alt="Question"
-                                                            className="h-12 w-auto rounded-lg border border-muted bg-white object-contain"
-                                                        />
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3 text-muted-foreground">
-                                                {q.category}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <Badge
-                                                    variant={
-                                                        diffVariant[
-                                                            q.difficulty
-                                                        ] ?? 'outline'
-                                                    }
-                                                    className="capitalize"
-                                                >
-                                                    {q.difficulty}
-                                                </Badge>
-                                            </td>
-                                            <td className="px-4 py-3 text-muted-foreground">
-                                                {q.options_count}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                {/* Check if any option has an image */}
-                                                {q.options &&
-                                                q.options.some(
-                                                    (opt: any) =>
-                                                        opt.image_path,
-                                                ) ? (
-                                                    <div className="flex items-center gap-1">
-                                                        <ImageIcon className="h-4 w-4 text-green-500" />
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {
-                                                                q.options.filter(
+                                    {questions.data.map((q, i) => {
+                                        const optionsWithImages =
+                                            q.options_with_images_count;
+
+                                        return (
+                                            <tr
+                                                key={q.id}
+                                                className="hover:bg-muted/30"
+                                            >
+                                                <td className="px-4 py-3 text-muted-foreground">
+                                                    {questions.from + i}
+                                                </td>
+                                                <td className="max-w-xs px-4 py-3">
+                                                    <p className="line-clamp-2 font-medium">
+                                                        {q.question_text}
+                                                    </p>
+                                                    {q.image_url && (
+                                                        <div className="mt-1">
+                                                            <img
+                                                                src={
+                                                                    q.image_url
+                                                                }
+                                                                alt="Question"
+                                                                className="h-12 w-auto rounded-lg border border-muted bg-white object-contain"
+                                                                onError={(
+                                                                    e,
+                                                                ) => {
                                                                     (
-                                                                        opt: any,
-                                                                    ) =>
-                                                                        opt.image_path,
-                                                                ).length
-                                                            }
-                                                        </span>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-xs text-muted-foreground/50">
-                                                        —
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <span
-                                                    className={`inline-block h-2 w-2 rounded-full ${q.is_active ? 'bg-green-500' : 'bg-muted-foreground/30'}`}
-                                                />
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <div className="flex items-center gap-1">
-                                                    <Link
-                                                        href={`/admin/questions/${q.id}/edit`}
+                                                                        e.target as HTMLImageElement
+                                                                    ).style.display =
+                                                                        'none';
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3 text-muted-foreground">
+                                                    {q.category}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <Badge
+                                                        variant={
+                                                            diffVariant[
+                                                                q.difficulty
+                                                            ] ?? 'outline'
+                                                        }
+                                                        className="capitalize"
                                                     >
+                                                        {q.difficulty}
+                                                    </Badge>
+                                                </td>
+                                                <td className="px-4 py-3 text-muted-foreground">
+                                                    {q.options_count}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {optionsWithImages > 0 ? (
+                                                        <div className="flex items-center gap-1">
+                                                            <ImageIcon className="h-4 w-4 text-green-500" />
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {
+                                                                    optionsWithImages
+                                                                }
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground/50">
+                                                            —
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {/* ─── Custom Toggle Switch ─── */}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            toggleActive(
+                                                                q.id,
+                                                                q.is_active,
+                                                            )
+                                                        }
+                                                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:outline-none ${
+                                                            q.is_active
+                                                                ? 'bg-primary'
+                                                                : 'bg-muted-foreground/30'
+                                                        } `}
+                                                        role="switch"
+                                                        aria-checked={
+                                                            q.is_active
+                                                        }
+                                                        aria-label={`Toggle active status for question ${q.id}`}
+                                                    >
+                                                        <span
+                                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                                                                q.is_active
+                                                                    ? 'translate-x-5'
+                                                                    : 'translate-x-0'
+                                                            } `}
+                                                        />
+                                                    </button>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex items-center gap-1">
+                                                        <Link
+                                                            href={`/admin/questions/${q.id}/edit`}
+                                                        >
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-7 w-7"
+                                                            >
+                                                                <Pencil className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </Link>
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            className="h-7 w-7"
+                                                            className="h-7 w-7 text-destructive hover:text-destructive"
+                                                            onClick={() =>
+                                                                destroy(q.id)
+                                                            }
                                                         >
-                                                            <Pencil className="h-3.5 w-3.5" />
+                                                            <Trash2 className="h-3.5 w-3.5" />
                                                         </Button>
-                                                    </Link>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-7 w-7 text-destructive hover:text-destructive"
-                                                        onClick={() =>
-                                                            destroy(q.id)
-                                                        }
-                                                    >
-                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                     {questions.data.length === 0 && (
                                         <tr>
                                             <td

@@ -111,6 +111,13 @@ export type PaginatedData<T> = {
     links: { url: string | null; label: string; active: boolean }[];
 };
 
+export type AdminQuestionOptionRow = {
+    id: number;
+    option_text: string;
+    image_url: string | null;
+    is_correct: boolean;
+};
+
 export type AdminQuestionRow = {
     id: number;
     question_text: string;
@@ -118,6 +125,9 @@ export type AdminQuestionRow = {
     difficulty: 'easy' | 'medium' | 'hard';
     is_active: boolean;
     options_count: number;
+    options_with_images_count: number;
+    image_url: string | null;
+    options: AdminQuestionOptionRow[];
 };
 
 export type AdminUserRow = {
