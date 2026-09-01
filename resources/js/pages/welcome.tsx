@@ -46,13 +46,7 @@ interface WelcomeProps {
 
 // ── Car images from Unsplash (free to use) ──
 const carImages = [
-    {
-        id: 1,
-        url: 'https://images.unsplash.com/photo-1544636331-e26879cd4d9b?w=1200&q=80',
-        alt: 'Red sports car on road',
-        title: 'Learn to Drive with Confidence',
-        subtitle: 'Professional driving lessons tailored to your pace',
-    },
+
     {
         id: 2,
         url: 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=1200&q=80',
@@ -66,6 +60,13 @@ const carImages = [
         alt: 'Classic car side view',
         title: 'Pass Your Test First Time',
         subtitle: 'Expert instructors with proven success rates',
+    },
+    {
+        id: 1,
+        url: 'https://images.unsplash.com/photo-1544636331-e26879cd4d9b?w=1200&q=80',
+        alt: 'Red sports car on road',
+        title: 'Learn to Drive with Confidence',
+        subtitle: 'Professional driving lessons tailored to your pace',
     },
     {
         id: 4,
@@ -508,11 +509,10 @@ export default function Welcome({
                         {carImages.map((image, index) => (
                             <div
                                 key={image.id}
-                                className={`absolute inset-0 transition-all duration-1000 ${
-                                    index === currentSlide
-                                        ? 'scale-100 opacity-100'
-                                        : 'scale-105 opacity-0'
-                                }`}
+                                className={`absolute inset-0 transition-all duration-1000 ${index === currentSlide
+                                    ? 'scale-100 opacity-100'
+                                    : 'scale-105 opacity-0'
+                                    }`}
                             >
                                 <div
                                     className="absolute inset-0 bg-cover bg-center"
@@ -610,11 +610,10 @@ export default function Welcome({
                                 <button
                                     key={index}
                                     onClick={() => goToSlide(index)}
-                                    className={`carousel-dot h-3 rounded-full transition-all ${
-                                        index === currentSlide
-                                            ? 'w-10 bg-[#F5C518]'
-                                            : 'w-3 bg-white/40 hover:bg-white/60'
-                                    }`}
+                                    className={`carousel-dot h-3 rounded-full transition-all ${index === currentSlide
+                                        ? 'w-10 bg-[#F5C518]'
+                                        : 'w-3 bg-white/40 hover:bg-white/60'
+                                        }`}
                                     aria-label={`Go to slide ${index + 1}`}
                                 />
                             ))}
@@ -856,12 +855,12 @@ export default function Welcome({
                                     plans.length === 1
                                         ? 'max-w-sm'
                                         : plans.length === 2
-                                          ? 'max-w-2xl grid-cols-1 sm:grid-cols-2'
-                                          : plans.length === 3
-                                            ? 'max-w-4xl grid-cols-1 sm:grid-cols-3'
-                                            : plans.length === 4
-                                              ? 'max-w-5xl grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
-                                              : 'max-w-6xl grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+                                            ? 'max-w-2xl grid-cols-1 sm:grid-cols-2'
+                                            : plans.length === 3
+                                                ? 'max-w-4xl grid-cols-1 sm:grid-cols-3'
+                                                : plans.length === 4
+                                                    ? 'max-w-5xl grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+                                                    : 'max-w-6xl grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
                                 ].join(' ')}
                             >
                                 {plans.map((plan) => {
@@ -871,8 +870,8 @@ export default function Welcome({
                                     const PlanIcon = isPractical
                                         ? Car
                                         : isHighEnd
-                                          ? Star
-                                          : Zap;
+                                            ? Star
+                                            : Zap;
                                     return (
                                         <div
                                             key={plan.id}
@@ -881,8 +880,8 @@ export default function Welcome({
                                                 plan.is_featured
                                                     ? 'plan-featured border-[#F5C518]'
                                                     : isPractical
-                                                      ? 'border-[#1B2A4A]/30 shadow-lg'
-                                                      : 'border-[#1B2A4A]/10 shadow-sm',
+                                                        ? 'border-[#1B2A4A]/30 shadow-lg'
+                                                        : 'border-[#1B2A4A]/10 shadow-sm',
                                                 isPractical && plans.length >= 3
                                                     ? 'sm:col-span-2 lg:col-span-1'
                                                     : '',
@@ -894,10 +893,10 @@ export default function Welcome({
                                                     plan.is_featured
                                                         ? 'bg-[#F5C518]'
                                                         : isPractical
-                                                          ? 'bg-[#1B2A4A]'
-                                                          : isHighEnd
-                                                            ? 'bg-amber-400'
-                                                            : 'bg-[#1B2A4A]/20',
+                                                            ? 'bg-[#1B2A4A]'
+                                                            : isHighEnd
+                                                                ? 'bg-amber-400'
+                                                                : 'bg-[#1B2A4A]/20',
                                                 ].join(' ')}
                                             />
 
@@ -909,8 +908,8 @@ export default function Welcome({
                                                             plan.is_featured
                                                                 ? 'bg-[#F5C518] text-[#1B2A4A]'
                                                                 : isPractical
-                                                                  ? 'bg-[#1B2A4A] text-white'
-                                                                  : 'bg-[#FEF3C7] text-[#D4A800]',
+                                                                    ? 'bg-[#1B2A4A] text-white'
+                                                                    : 'bg-[#FEF3C7] text-[#D4A800]',
                                                         ].join(' ')}
                                                     >
                                                         {plan.badge_label}
@@ -925,8 +924,8 @@ export default function Welcome({
                                                         plan.is_featured
                                                             ? 'bg-[#FEF3C7]'
                                                             : isPractical
-                                                              ? 'bg-[#1B2A4A]/10'
-                                                              : 'bg-[#F8FAFF]',
+                                                                ? 'bg-[#1B2A4A]/10'
+                                                                : 'bg-[#F8FAFF]',
                                                     ].join(' ')}
                                                 >
                                                     <PlanIcon
@@ -935,10 +934,10 @@ export default function Welcome({
                                                             plan.is_featured
                                                                 ? 'text-[#D4A800]'
                                                                 : isPractical
-                                                                  ? 'text-[#1B2A4A]'
-                                                                  : isHighEnd
-                                                                    ? 'text-amber-500'
-                                                                    : 'text-blue-500',
+                                                                    ? 'text-[#1B2A4A]'
+                                                                    : isHighEnd
+                                                                        ? 'text-amber-500'
+                                                                        : 'text-blue-500',
                                                         ].join(' ')}
                                                     />
                                                 </div>
@@ -971,7 +970,7 @@ export default function Welcome({
 
                                                 {plan.features &&
                                                     plan.features.length >
-                                                        0 && (
+                                                    0 && (
                                                         <ul className="mb-8 flex-1 space-y-2.5">
                                                             {plan.features.map(
                                                                 (f) => (
@@ -985,8 +984,8 @@ export default function Welcome({
                                                                                 plan.is_featured
                                                                                     ? 'text-[#D4A800]'
                                                                                     : isPractical
-                                                                                      ? 'text-[#1B2A4A]'
-                                                                                      : 'text-emerald-500',
+                                                                                        ? 'text-[#1B2A4A]'
+                                                                                        : 'text-emerald-500',
                                                                             ].join(
                                                                                 ' ',
                                                                             )}
@@ -1007,8 +1006,8 @@ export default function Welcome({
                                                                     plan.is_featured
                                                                         ? 'gold-gradient text-[#1B2A4A] shadow-lg hover:opacity-90'
                                                                         : isPractical
-                                                                          ? 'bg-[#1B2A4A] text-white hover:bg-[#2D4270]'
-                                                                          : 'border-2 border-[#1B2A4A]/20 text-[#1B2A4A] hover:border-[#1B2A4A]/50 hover:bg-[#1B2A4A]/5',
+                                                                            ? 'bg-[#1B2A4A] text-white hover:bg-[#2D4270]'
+                                                                            : 'border-2 border-[#1B2A4A]/20 text-[#1B2A4A] hover:border-[#1B2A4A]/50 hover:bg-[#1B2A4A]/5',
                                                                 ].join(' ')}
                                                             >
                                                                 {isPractical
