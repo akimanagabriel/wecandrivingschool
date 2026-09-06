@@ -64,6 +64,7 @@ class ItecPayment
     }
 
     /** Extract human-readable error message from a failed response. */
+    
     public function extractErrorMessage(Response $response): string
     {
         $body = $response->json();
