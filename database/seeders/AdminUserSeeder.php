@@ -11,11 +11,11 @@ class AdminUserSeeder extends Seeder
     public function run(): void
     {
         $admin = User::firstOrCreate(
-            ['email' => 'admin@wecandriving.rw'],
+            ['email' => 'admin@site.com'],
             [
-                'name'            => 'Admin WeCanDriving',
-                'password'        => Hash::make('Admin@12345'),
-                'is_active'       => true,
+                'name' => 'Admin WeCanDriving',
+                'password' => Hash::make('admin@12345'),
+                'is_active' => true,
                 'has_paid_access' => true,
             ]
         );
@@ -32,9 +32,9 @@ class AdminUserSeeder extends Seeder
             $user = User::firstOrCreate(
                 ['email' => $s['email']],
                 [
-                    'name'            => $s['name'],
-                    'password'        => Hash::make('Student@12345'),
-                    'is_active'       => true,
+                    'name' => $s['name'],
+                    'password' => Hash::make('Student@12345'),
+                    'is_active' => true,
                     'has_paid_access' => true,
                 ]
             );
