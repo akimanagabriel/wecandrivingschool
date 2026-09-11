@@ -13,7 +13,7 @@ export default function AuthSplitLayout({
     return (
         <div className="grid min-h-screen bg-white lg:grid-cols-2">
             {/* LEFT SIDE - HERO */}
-            <div className="relative hidden flex-col justify-between bg-gradient-to-br from-[#2b1a12] via-[#3a2418] to-[#1f120d] p-12 text-white lg:flex">
+            <div className="relative hidden flex-col justify-between bg-gradient-to-br from-sky-950 via-sky-900 to-sky-900 p-12 text-white lg:flex">
                 {/* Overlay */}
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#ffffff_1px,_transparent_1px)] bg-[size:20px_20px] opacity-20" />
 
