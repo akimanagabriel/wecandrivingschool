@@ -43,7 +43,7 @@ export function AppSidebar() {
     const mainNavItems = isAdmin ? adminNavItems : studentNavItems;
 
     return (
-        <Sidebar collapsible="icon" variant="floating">
+        <Sidebar collapsible="icon" variant="sidebar">
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
